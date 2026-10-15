@@ -1,0 +1,1836 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mercat-conect.local/events.schema.json",
+  "title": "Eventos de Mercat-Conect",
+  "description": "$defs.sse: eventos de GET /stream (campo `event:` del SSE; `data:` es JSON con el esquema). $defs.domain: catálogo §16.3 almacenado en domain_events.",
+  "$defs": {
+    "sse": {
+      "offer.updated": {
+        "type": "object",
+        "required": [
+          "offer_id",
+          "status",
+          "qty_available"
+        ],
+        "properties": {
+          "offer_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "enum": [
+              "DRAFT",
+              "ACTIVE",
+              "SOLD_OUT",
+              "EXPIRED",
+              "WITHDRAWN",
+              "DONATED",
+              "DISCARDED"
+            ]
+          },
+          "qty_available": {
+            "type": "integer"
+          },
+          "price_cents": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false
+      },
+      "order.updated": {
+        "type": "object",
+        "required": [
+          "order_id",
+          "status"
+        ],
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "enum": [
+              "HELD",
+              "PAID",
+              "EXPIRED_HOLD",
+              "PREPARING",
+              "CANCELLED_BY_PRODUCER",
+              "IN_LOCKER",
+              "PICKED_UP",
+              "NO_SHOW",
+              "TEMP_ALARM",
+              "REFUNDED"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "notification.created": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "payload",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "payload": {
+            "type": "object"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "domain": {
+      "offer.published": {
+        "type": "object",
+        "description": "",
+        "required": [
+          "offer_id",
+          "stall_id",
+          "product_id",
+          "qty",
+          "price_cents",
+          "pickup_window"
+        ],
+        "properties": {
+          "offer_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "stall_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "product_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "qty": {
+            "type": "integer"
+          },
+          "price_cents": {
+            "type": "integer"
+          },
+          "pickup_window": {
+            "type": "object",
+            "required": [
+              "from",
+              "until"
+            ],
+            "properties": {
+              "from": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "until": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "offer.price_changed": {
+        "type": "object",
+        "description": "",
+        "required": [
+          "offer_id",
+          "old_cents",
+          "new_cents"
+        ],
+        "properties": {
+          "offer_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "old_cents": {
+            "type": "integer"
+          },
+          "new_cents": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false
+      },
+      "offer.expired": {
+        "type": "object",
+        "description": "",
+        "required": [
+          "offer_id",
+          "qty_remaining"
+        ],
+        "properties": {
+          "offer_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "qty_remaining": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false
+      },
+      "offer.withdrawn": {
+        "type": "object",
+        "description": "",
+        "required": [
+          "offer_id",
+          "qty_remaining"
+        ],
+        "properties": {
+          "offer_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "qty_remaining": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false
+      },
+      "app.offer_viewed": {
+        "type": "object",
+        "description": "",
+        "required": [
+          "user_pseudo_id",
+          "offer_id"
+        ],
+        "properties": {
+          "user_pseudo_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "user_pseudo_id; null si anónimo"
+          },
+          "offer_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "app.checkout_started": {
+        "type": "object",
+        "description": "",
+        "required": [
+          "user_pseudo_id",
+          "offer_id"
+        ],
+        "properties": {
+          "user_pseudo_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "user_pseudo_id; null si anónimo"
+          },
+          "offer_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "notification.sent": {
+        "type": "object",
+        "description": "",
+        "required": [
+          "channel",
+          "audience",
+          "offer_id",
+          "latency_ms"
+        ],
+        "properties": {
+          "channel": {
+            "type": "string",
+            "enum": [
+              "in_app",
+              "email",
+              "push",
+              "telegram"
+            ]
+          },
+          "audience": {
+            "type": "string"
+          },
+          "offer_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "latency_ms": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false
+      },
+      "order.held": {
+        "type": "object",
+        "description": "",
+        "required": [
+          "order_id",
+          "user_pseudo_id",
+          "offer_id",
+          "qty",
+          "points_cost",
+          "rules_applied"
+        ],
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "user_pseudo_id": {
+            "type": "string"
+          },
+          "offer_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "qty": {
+            "type": "integer"
+          },
+          "points_cost": {
+            "type": "integer"
+          },
+          "rules_applied": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "order.denied": {
+        "type": "object",
+        "description": "",
+        "required": [
+          "user_pseudo_id",
+          "offer_id",
+          "reason"
+        ],
+        "properties": {
+          "user_pseudo_id": {
+            "type": "string"
+          },
+          "offer_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "sin_puntos",
+              "supera_maximo",
+              "reputacion_insuficiente",
+              "cuenta_no_verificada",
+              "sin_stock",
+              "sin_capacidad_taquilla"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "order.paid": {
+        "type": "object",
+        "description": "",
+        "required": [
+          "order_id",
+          "amount_cents"
+        ],
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amount_cents": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false
+      },
+      "order.deposited": {
+        "type": "object",
+        "description": "",
+        "required": [
+          "order_id",
+          "compartment_id",
+          "seconds_since_paid"
+        ],
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "compartment_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "seconds_since_paid": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false
+      },
+      "order.picked_up": {
+        "type": "object",
+        "description": "",
+        "required": [
+          "order_id",
+          "seconds_to_pickup"
+        ],
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "seconds_to_pickup": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false
+      },
+      "order.no_show": {
+        "type": "object",
+        "description": "",
+        "required": [
+          "order_id",
+          "cause"
+        ],
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cause": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "order.cancelled": {
+        "type": "object",
+        "description": "",
+        "required": [
+          "order_id",
+          "cause"
+        ],
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cause": {
+            "type": "string",
+            "enum": [
+              "producer_rejected",
+              "producer_no_deposit",
+              "hold_expired",
+              "temp_alarm",
+              "user"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "points.spent": {
+        "type": "object",
+        "description": "",
+        "required": [
+          "user_pseudo_id",
+          "week_key",
+          "delta"
+        ],
+        "properties": {
+          "user_pseudo_id": {
+            "type": "string"
+          },
+          "week_key": {
+            "type": "string"
+          },
+          "delta": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false
+      },
+      "points.refunded": {
+        "type": "object",
+        "description": "",
+        "required": [
+          "user_pseudo_id",
+          "week_key",
+          "delta"
+        ],
+        "properties": {
+          "user_pseudo_id": {
+            "type": "string"
+          },
+          "week_key": {
+            "type": "string"
+          },
+          "delta": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false
+      },
+      "locker.temp_reading": {
+        "type": "object",
+        "description": "",
+        "required": [
+          "locker_id",
+          "compartment_id",
+          "celsius"
+        ],
+        "properties": {
+          "locker_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "compartment_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "celsius": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "locker.alarm": {
+        "type": "object",
+        "description": "",
+        "required": [
+          "locker_id",
+          "type"
+        ],
+        "properties": {
+          "locker_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "donation.completed": {
+        "type": "object",
+        "description": "",
+        "required": [
+          "offer_id",
+          "charity_id",
+          "qty"
+        ],
+        "properties": {
+          "offer_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "charity_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "qty": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false
+      },
+      "user.verified": {
+        "type": "object",
+        "description": "",
+        "required": [
+          "user_pseudo_id",
+          "method"
+        ],
+        "properties": {
+          "user_pseudo_id": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "clave",
+              "eudi",
+              "kyc",
+              "demo"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "producer.penalized": {
+        "type": "object",
+        "description": "",
+        "required": [
+          "stall_id",
+          "order_id",
+          "delta",
+          "cause",
+          "reputation"
+        ],
+        "properties": {
+          "stall_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "order_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "delta": {
+            "type": "number"
+          },
+          "cause": {
+            "type": "string",
+            "enum": [
+              "producer_rejected",
+              "producer_no_deposit"
+            ]
+          },
+          "reputation": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "domainEnvelopes": {
+      "offer.published": {
+        "type": "object",
+        "required": [
+          "event_id",
+          "event_type",
+          "occurred_at",
+          "payload"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "domain_events.id (clave de idempotencia)"
+          },
+          "event_type": {
+            "const": "offer.published"
+          },
+          "aggregate_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Hora del Clock"
+          },
+          "payload": {
+            "type": "object",
+            "description": "",
+            "required": [
+              "offer_id",
+              "stall_id",
+              "product_id",
+              "qty",
+              "price_cents",
+              "pickup_window"
+            ],
+            "properties": {
+              "offer_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "stall_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "product_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "qty": {
+                "type": "integer"
+              },
+              "price_cents": {
+                "type": "integer"
+              },
+              "pickup_window": {
+                "type": "object",
+                "required": [
+                  "from",
+                  "until"
+                ],
+                "properties": {
+                  "from": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "until": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "offer.price_changed": {
+        "type": "object",
+        "required": [
+          "event_id",
+          "event_type",
+          "occurred_at",
+          "payload"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "domain_events.id (clave de idempotencia)"
+          },
+          "event_type": {
+            "const": "offer.price_changed"
+          },
+          "aggregate_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Hora del Clock"
+          },
+          "payload": {
+            "type": "object",
+            "description": "",
+            "required": [
+              "offer_id",
+              "old_cents",
+              "new_cents"
+            ],
+            "properties": {
+              "offer_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "old_cents": {
+                "type": "integer"
+              },
+              "new_cents": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "offer.expired": {
+        "type": "object",
+        "required": [
+          "event_id",
+          "event_type",
+          "occurred_at",
+          "payload"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "domain_events.id (clave de idempotencia)"
+          },
+          "event_type": {
+            "const": "offer.expired"
+          },
+          "aggregate_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Hora del Clock"
+          },
+          "payload": {
+            "type": "object",
+            "description": "",
+            "required": [
+              "offer_id",
+              "qty_remaining"
+            ],
+            "properties": {
+              "offer_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "qty_remaining": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "offer.withdrawn": {
+        "type": "object",
+        "required": [
+          "event_id",
+          "event_type",
+          "occurred_at",
+          "payload"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "domain_events.id (clave de idempotencia)"
+          },
+          "event_type": {
+            "const": "offer.withdrawn"
+          },
+          "aggregate_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Hora del Clock"
+          },
+          "payload": {
+            "type": "object",
+            "description": "",
+            "required": [
+              "offer_id",
+              "qty_remaining"
+            ],
+            "properties": {
+              "offer_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "qty_remaining": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "app.offer_viewed": {
+        "type": "object",
+        "required": [
+          "event_id",
+          "event_type",
+          "occurred_at",
+          "payload"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "domain_events.id (clave de idempotencia)"
+          },
+          "event_type": {
+            "const": "app.offer_viewed"
+          },
+          "aggregate_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Hora del Clock"
+          },
+          "payload": {
+            "type": "object",
+            "description": "",
+            "required": [
+              "user_pseudo_id",
+              "offer_id"
+            ],
+            "properties": {
+              "user_pseudo_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "user_pseudo_id; null si anónimo"
+              },
+              "offer_id": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "app.checkout_started": {
+        "type": "object",
+        "required": [
+          "event_id",
+          "event_type",
+          "occurred_at",
+          "payload"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "domain_events.id (clave de idempotencia)"
+          },
+          "event_type": {
+            "const": "app.checkout_started"
+          },
+          "aggregate_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Hora del Clock"
+          },
+          "payload": {
+            "type": "object",
+            "description": "",
+            "required": [
+              "user_pseudo_id",
+              "offer_id"
+            ],
+            "properties": {
+              "user_pseudo_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "user_pseudo_id; null si anónimo"
+              },
+              "offer_id": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "notification.sent": {
+        "type": "object",
+        "required": [
+          "event_id",
+          "event_type",
+          "occurred_at",
+          "payload"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "domain_events.id (clave de idempotencia)"
+          },
+          "event_type": {
+            "const": "notification.sent"
+          },
+          "aggregate_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Hora del Clock"
+          },
+          "payload": {
+            "type": "object",
+            "description": "",
+            "required": [
+              "channel",
+              "audience",
+              "offer_id",
+              "latency_ms"
+            ],
+            "properties": {
+              "channel": {
+                "type": "string",
+                "enum": [
+                  "in_app",
+                  "email",
+                  "push",
+                  "telegram"
+                ]
+              },
+              "audience": {
+                "type": "string"
+              },
+              "offer_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              },
+              "latency_ms": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "order.held": {
+        "type": "object",
+        "required": [
+          "event_id",
+          "event_type",
+          "occurred_at",
+          "payload"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "domain_events.id (clave de idempotencia)"
+          },
+          "event_type": {
+            "const": "order.held"
+          },
+          "aggregate_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Hora del Clock"
+          },
+          "payload": {
+            "type": "object",
+            "description": "",
+            "required": [
+              "order_id",
+              "user_pseudo_id",
+              "offer_id",
+              "qty",
+              "points_cost",
+              "rules_applied"
+            ],
+            "properties": {
+              "order_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "user_pseudo_id": {
+                "type": "string"
+              },
+              "offer_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "qty": {
+                "type": "integer"
+              },
+              "points_cost": {
+                "type": "integer"
+              },
+              "rules_applied": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "order.denied": {
+        "type": "object",
+        "required": [
+          "event_id",
+          "event_type",
+          "occurred_at",
+          "payload"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "domain_events.id (clave de idempotencia)"
+          },
+          "event_type": {
+            "const": "order.denied"
+          },
+          "aggregate_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Hora del Clock"
+          },
+          "payload": {
+            "type": "object",
+            "description": "",
+            "required": [
+              "user_pseudo_id",
+              "offer_id",
+              "reason"
+            ],
+            "properties": {
+              "user_pseudo_id": {
+                "type": "string"
+              },
+              "offer_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "sin_puntos",
+                  "supera_maximo",
+                  "reputacion_insuficiente",
+                  "cuenta_no_verificada",
+                  "sin_stock",
+                  "sin_capacidad_taquilla"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "order.paid": {
+        "type": "object",
+        "required": [
+          "event_id",
+          "event_type",
+          "occurred_at",
+          "payload"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "domain_events.id (clave de idempotencia)"
+          },
+          "event_type": {
+            "const": "order.paid"
+          },
+          "aggregate_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Hora del Clock"
+          },
+          "payload": {
+            "type": "object",
+            "description": "",
+            "required": [
+              "order_id",
+              "amount_cents"
+            ],
+            "properties": {
+              "order_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "amount_cents": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "order.deposited": {
+        "type": "object",
+        "required": [
+          "event_id",
+          "event_type",
+          "occurred_at",
+          "payload"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "domain_events.id (clave de idempotencia)"
+          },
+          "event_type": {
+            "const": "order.deposited"
+          },
+          "aggregate_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Hora del Clock"
+          },
+          "payload": {
+            "type": "object",
+            "description": "",
+            "required": [
+              "order_id",
+              "compartment_id",
+              "seconds_since_paid"
+            ],
+            "properties": {
+              "order_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "compartment_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "seconds_since_paid": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "order.picked_up": {
+        "type": "object",
+        "required": [
+          "event_id",
+          "event_type",
+          "occurred_at",
+          "payload"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "domain_events.id (clave de idempotencia)"
+          },
+          "event_type": {
+            "const": "order.picked_up"
+          },
+          "aggregate_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Hora del Clock"
+          },
+          "payload": {
+            "type": "object",
+            "description": "",
+            "required": [
+              "order_id",
+              "seconds_to_pickup"
+            ],
+            "properties": {
+              "order_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "seconds_to_pickup": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "order.no_show": {
+        "type": "object",
+        "required": [
+          "event_id",
+          "event_type",
+          "occurred_at",
+          "payload"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "domain_events.id (clave de idempotencia)"
+          },
+          "event_type": {
+            "const": "order.no_show"
+          },
+          "aggregate_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Hora del Clock"
+          },
+          "payload": {
+            "type": "object",
+            "description": "",
+            "required": [
+              "order_id",
+              "cause"
+            ],
+            "properties": {
+              "order_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "cause": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "order.cancelled": {
+        "type": "object",
+        "required": [
+          "event_id",
+          "event_type",
+          "occurred_at",
+          "payload"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "domain_events.id (clave de idempotencia)"
+          },
+          "event_type": {
+            "const": "order.cancelled"
+          },
+          "aggregate_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Hora del Clock"
+          },
+          "payload": {
+            "type": "object",
+            "description": "",
+            "required": [
+              "order_id",
+              "cause"
+            ],
+            "properties": {
+              "order_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "cause": {
+                "type": "string",
+                "enum": [
+                  "producer_rejected",
+                  "producer_no_deposit",
+                  "hold_expired",
+                  "temp_alarm",
+                  "user"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "points.spent": {
+        "type": "object",
+        "required": [
+          "event_id",
+          "event_type",
+          "occurred_at",
+          "payload"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "domain_events.id (clave de idempotencia)"
+          },
+          "event_type": {
+            "const": "points.spent"
+          },
+          "aggregate_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Hora del Clock"
+          },
+          "payload": {
+            "type": "object",
+            "description": "",
+            "required": [
+              "user_pseudo_id",
+              "week_key",
+              "delta"
+            ],
+            "properties": {
+              "user_pseudo_id": {
+                "type": "string"
+              },
+              "week_key": {
+                "type": "string"
+              },
+              "delta": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "points.refunded": {
+        "type": "object",
+        "required": [
+          "event_id",
+          "event_type",
+          "occurred_at",
+          "payload"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "domain_events.id (clave de idempotencia)"
+          },
+          "event_type": {
+            "const": "points.refunded"
+          },
+          "aggregate_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Hora del Clock"
+          },
+          "payload": {
+            "type": "object",
+            "description": "",
+            "required": [
+              "user_pseudo_id",
+              "week_key",
+              "delta"
+            ],
+            "properties": {
+              "user_pseudo_id": {
+                "type": "string"
+              },
+              "week_key": {
+                "type": "string"
+              },
+              "delta": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "locker.temp_reading": {
+        "type": "object",
+        "required": [
+          "event_id",
+          "event_type",
+          "occurred_at",
+          "payload"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "domain_events.id (clave de idempotencia)"
+          },
+          "event_type": {
+            "const": "locker.temp_reading"
+          },
+          "aggregate_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Hora del Clock"
+          },
+          "payload": {
+            "type": "object",
+            "description": "",
+            "required": [
+              "locker_id",
+              "compartment_id",
+              "celsius"
+            ],
+            "properties": {
+              "locker_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "compartment_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "celsius": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "locker.alarm": {
+        "type": "object",
+        "required": [
+          "event_id",
+          "event_type",
+          "occurred_at",
+          "payload"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "domain_events.id (clave de idempotencia)"
+          },
+          "event_type": {
+            "const": "locker.alarm"
+          },
+          "aggregate_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Hora del Clock"
+          },
+          "payload": {
+            "type": "object",
+            "description": "",
+            "required": [
+              "locker_id",
+              "type"
+            ],
+            "properties": {
+              "locker_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "type": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "donation.completed": {
+        "type": "object",
+        "required": [
+          "event_id",
+          "event_type",
+          "occurred_at",
+          "payload"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "domain_events.id (clave de idempotencia)"
+          },
+          "event_type": {
+            "const": "donation.completed"
+          },
+          "aggregate_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Hora del Clock"
+          },
+          "payload": {
+            "type": "object",
+            "description": "",
+            "required": [
+              "offer_id",
+              "charity_id",
+              "qty"
+            ],
+            "properties": {
+              "offer_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "charity_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "qty": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "user.verified": {
+        "type": "object",
+        "required": [
+          "event_id",
+          "event_type",
+          "occurred_at",
+          "payload"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "domain_events.id (clave de idempotencia)"
+          },
+          "event_type": {
+            "const": "user.verified"
+          },
+          "aggregate_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Hora del Clock"
+          },
+          "payload": {
+            "type": "object",
+            "description": "",
+            "required": [
+              "user_pseudo_id",
+              "method"
+            ],
+            "properties": {
+              "user_pseudo_id": {
+                "type": "string"
+              },
+              "method": {
+                "type": "string",
+                "enum": [
+                  "clave",
+                  "eudi",
+                  "kyc",
+                  "demo"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "producer.penalized": {
+        "type": "object",
+        "required": [
+          "event_id",
+          "event_type",
+          "occurred_at",
+          "payload"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "description": "domain_events.id (clave de idempotencia)"
+          },
+          "event_type": {
+            "const": "producer.penalized"
+          },
+          "aggregate_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Hora del Clock"
+          },
+          "payload": {
+            "type": "object",
+            "description": "",
+            "required": [
+              "stall_id",
+              "order_id",
+              "delta",
+              "cause",
+              "reputation"
+            ],
+            "properties": {
+              "stall_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "order_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "delta": {
+                "type": "number"
+              },
+              "cause": {
+                "type": "string",
+                "enum": [
+                  "producer_rejected",
+                  "producer_no_deposit"
+                ]
+              },
+              "reputation": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/domainEnvelopes/offer.published"
+    },
+    {
+      "$ref": "#/$defs/domainEnvelopes/offer.price_changed"
+    },
+    {
+      "$ref": "#/$defs/domainEnvelopes/offer.expired"
+    },
+    {
+      "$ref": "#/$defs/domainEnvelopes/offer.withdrawn"
+    },
+    {
+      "$ref": "#/$defs/domainEnvelopes/app.offer_viewed"
+    },
+    {
+      "$ref": "#/$defs/domainEnvelopes/app.checkout_started"
+    },
+    {
+      "$ref": "#/$defs/domainEnvelopes/notification.sent"
+    },
+    {
+      "$ref": "#/$defs/domainEnvelopes/order.held"
+    },
+    {
+      "$ref": "#/$defs/domainEnvelopes/order.denied"
+    },
+    {
+      "$ref": "#/$defs/domainEnvelopes/order.paid"
+    },
+    {
+      "$ref": "#/$defs/domainEnvelopes/order.deposited"
+    },
+    {
+      "$ref": "#/$defs/domainEnvelopes/order.picked_up"
+    },
+    {
+      "$ref": "#/$defs/domainEnvelopes/order.no_show"
+    },
+    {
+      "$ref": "#/$defs/domainEnvelopes/order.cancelled"
+    },
+    {
+      "$ref": "#/$defs/domainEnvelopes/points.spent"
+    },
+    {
+      "$ref": "#/$defs/domainEnvelopes/points.refunded"
+    },
+    {
+      "$ref": "#/$defs/domainEnvelopes/locker.temp_reading"
+    },
+    {
+      "$ref": "#/$defs/domainEnvelopes/locker.alarm"
+    },
+    {
+      "$ref": "#/$defs/domainEnvelopes/donation.completed"
+    },
+    {
+      "$ref": "#/$defs/domainEnvelopes/user.verified"
+    },
+    {
+      "$ref": "#/$defs/domainEnvelopes/producer.penalized"
+    }
+  ]
+}

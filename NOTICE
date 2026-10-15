@@ -1,0 +1,11 @@
+Mercat-Conect · avisos de terceros
+
+La configuración multiagente de `.claude/` se inspira en el repositorio
+wshobson/agents (https://github.com/wshobson/agents), licencia MIT,
+Copyright (c) 2024 Seth Hobson. De ahí se toman las ideas de agentes de
+responsabilidad única, asignación de modelo por coste de la tarea y
+catálogo mínimo instalado en lugar de colecciones grandes. Los textos de
+los agentes están escritos para este proyecto y ajustados a ARQUITECTURA.md.
+
+Otras lecturas consultadas: documentación oficial de subagentes de Claude Code
+(https://code.claude.com/docs/en/sub-agents).

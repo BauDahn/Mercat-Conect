@@ -1,0 +1,11 @@
+pyproject.toml
+app/__init__.py
+app/config.py
+app/main.py
+app/db/__init__.py
+app/db/models.py
+mercat_conect_api.egg-info/PKG-INFO
+mercat_conect_api.egg-info/SOURCES.txt
+mercat_conect_api.egg-info/dependency_links.txt
+mercat_conect_api.egg-info/requires.txt
+mercat_conect_api.egg-info/top_level.txt

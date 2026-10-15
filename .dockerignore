@@ -1,0 +1,9 @@
+.git
+.demo
+.env
+**/node_modules
+**/.venv
+**/__pycache__
+**/dist
+**/playwright-report
+**/test-results

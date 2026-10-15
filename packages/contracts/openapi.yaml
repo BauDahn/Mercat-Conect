@@ -1,0 +1,1252 @@
+openapi: 3.1.0
+info:
+  title: Mercat-Conect API
+  version: 0.1.0
+  description: Contrato de la sección 5.4 de ARQUITECTURA.md. Los endpoints /demo/* y /sim/lockers/* existen solo con DEMO_MODE=true.
+servers:
+  - url: http://localhost:8000
+security:
+  - sessionCookie: []
+tags:
+  - name: auth
+  - name: identity
+  - name: offers
+  - name: orders
+  - name: payments
+  - name: me
+  - name: notifications
+  - name: producer
+  - name: admin
+  - name: open-data
+  - name: demo
+    description: Solo demo (DEMO_MODE=true)
+  - name: system
+paths:
+  /healthz:
+    get:
+      tags: [system]
+      security: []
+      summary: Comprobación de salud
+      operationId: healthz
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: {type: string, enum: [ok]}
+                  demo_mode: {type: boolean}
+  /auth/register:
+    post:
+      tags: [auth]
+      security: []
+      operationId: authRegister
+      summary: Alta de cuenta (queda PENDING hasta verificar edad)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RegisterRequest'}
+      responses:
+        '201':
+          description: Cuenta creada; establece cookie de sesión
+          headers:
+            Set-Cookie: {$ref: '#/components/headers/SetSessionCookie'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/User'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /auth/login:
+    post:
+      tags: [auth]
+      security: []
+      operationId: authLogin
+      summary: Entrada; establece cookie de sesión HttpOnly
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/LoginRequest'}
+      responses:
+        '200':
+          description: Sesión iniciada
+          headers:
+            Set-Cookie: {$ref: '#/components/headers/SetSessionCookie'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/User'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+  /auth/logout:
+    post:
+      tags: [auth]
+      operationId: authLogout
+      summary: Salida; invalida la sesión
+      responses:
+        '204': {description: Sesión cerrada}
+  /identity/age/start:
+    get:
+      tags: [identity]
+      operationId: ageStart
+      summary: Inicia la verificación de edad
+      responses:
+        '200':
+          description: Dirección a la que redirigir al usuario
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [redirect_url, state]
+                properties:
+                  redirect_url: {type: string}
+                  state: {type: string}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /identity/age/callback:
+    get:
+      tags: [identity]
+      operationId: ageCallback
+      summary: Resultado de la verificación de edad
+      description: |
+        Con `AGE_VERIFIER=fake` (demo): `token` es el identificador estable inventado (un DNI de mentira, p. ej.
+        `12345678Z`; se normaliza a mayúsculas y la misma persona siempre produce el mismo `person_hash`) y `kind`
+        es `adult` o `minor`. Con `minor` responde 403 `age_not_verified`. Un DNI ya vinculado a otra cuenta
+        responde 409 `person_already_registered`. `state` es el devuelto por `/identity/age/start`.
+        Con verificadores reales `kind` se ignora y `token` es el resultado firmado del proveedor.
+      parameters:
+        - {name: state, in: query, required: true, schema: {type: string}}
+        - {name: token, in: query, required: true, schema: {type: string}, description: "Fake: DNI inventado"}
+        - {name: kind, in: query, required: false, schema: {type: string, enum: [adult, minor], default: adult}, description: "Solo verificador fake"}
+      responses:
+        '200':
+          description: Edad verificada; la cuenta pasa a ACTIVE
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/User'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /me:
+    get:
+      tags: [me]
+      operationId: getMe
+      summary: Usuario actual
+      responses:
+        '200':
+          description: Usuario (rol, estado, edad verificada, idioma)
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/User'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+    delete:
+      tags: [me]
+      operationId: deleteMe
+      summary: Eliminar mi cuenta (anonimiza los datos personales, §18.2)
+      description: Conserva solo los registros obligatorios sin identificar a la persona. Falla con 409 si hay pedidos en curso.
+      responses:
+        '204': {description: Cuenta anonimizada y sesión cerrada}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /products:
+    get:
+      tags: [producer]
+      operationId: listProducts
+      summary: Plantillas de producto de un puesto del productor
+      parameters:
+        - {name: stall_id, in: query, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Productos
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/Product'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /producer/stalls:
+    get:
+      tags: [producer]
+      operationId: producerListStalls
+      summary: Puestos del productor
+      responses:
+        '200':
+          description: Puestos
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/Stall'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /offers:
+    get:
+      tags: [offers]
+      security: [{}, {sessionCookie: []}]
+      operationId: listOffers
+      summary: Listado para el dashboard (lectura anónima permitida)
+      parameters:
+        - {name: market, in: query, schema: {type: string, format: uuid}}
+        - {name: category, in: query, schema: {type: string}}
+        - name: sort
+          in: query
+          schema: {type: string, enum: [closing_soon, price_asc, price_desc, newest, distance], default: closing_soon}
+        - {name: q, in: query, schema: {type: string}}
+      responses:
+        '200':
+          description: Ofertas activas
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    description: Cada oferta incluye `decision` (qty=1) si hay sesión; null si es anónimo
+                    items: {$ref: '#/components/schemas/OfferDetail'}
+  /offers/{id}:
+    get:
+      tags: [offers]
+      security: [{}, {sessionCookie: []}]
+      operationId: getOffer
+      summary: Detalle; con sesión incluye la decisión del motor para el usuario
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {name: qty, in: query, required: false, schema: {type: integer, minimum: 1, default: 1}, description: "Cantidad para la que se calcula `decision` (coste = ceil(qty * puntos_por_unidad); límite y saldo se comprueban para esa cantidad)"}
+      responses:
+        '200':
+          description: Detalle. `decision` es null sin sesión.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OfferDetail'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /orders:
+    post:
+      tags: [orders]
+      operationId: createOrder
+      summary: Crea el pedido (reserva stock y puntos de forma atómica)
+      parameters:
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateOrderRequest'}
+      responses:
+        '201':
+          description: Pedido creado en estado HELD
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Order'}
+        '200':
+          description: Reintento con la misma Idempotency-Key; devuelve el pedido existente
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Order'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+    get:
+      tags: [orders]
+      operationId: listOrders
+      summary: Pedidos del usuario
+      parameters:
+        - {name: status, in: query, schema: {$ref: '#/components/schemas/OrderStatus'}}
+      responses:
+        '200':
+          description: Pedidos
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/Order'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /orders/{id}:
+    get:
+      tags: [orders]
+      operationId: getOrder
+      summary: Detalle del pedido; pickup_code solo en IN_LOCKER
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+      responses:
+        '200':
+          description: Pedido
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Order'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /orders/{id}/pay:
+    post:
+      tags: [orders]
+      operationId: payOrder
+      summary: Inicia el pago del pedido HELD
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                simulate: {type: string, enum: [success, failure, delay], description: "Solo demo (FakePaymentProvider)"}
+      responses:
+        '200':
+          description: Pago iniciado
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PaymentIntent'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /payments/webhook/{provider}:
+    post:
+      tags: [payments]
+      security: []
+      operationId: paymentWebhook
+      summary: Confirmación de pago (firma verificada)
+      parameters:
+        - {name: provider, in: path, required: true, schema: {type: string, examples: [fake, redsys, stripe]}}
+        - {name: X-Signature, in: header, required: true, schema: {type: string}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PaymentWebhook'}
+      responses:
+        '200': {description: Procesado (idempotente)}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /me/points:
+    get:
+      tags: [me]
+      operationId: getMyPoints
+      summary: Saldo semanal y fecha de renovación
+      responses:
+        '200':
+          description: Saldo
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Points'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /notifications:
+    get:
+      tags: [notifications]
+      operationId: listNotifications
+      summary: Bandeja de notificaciones
+      parameters:
+        - {name: unread, in: query, schema: {type: boolean}}
+      responses:
+        '200':
+          description: Notificaciones
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/Notification'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /push/subscribe:
+    post:
+      tags: [notifications]
+      operationId: pushSubscribe
+      summary: Suscripción a Web Push
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [endpoint, keys]
+              properties:
+                endpoint: {type: string}
+                keys: {type: object, additionalProperties: {type: string}}
+      responses:
+        '204': {description: Suscrito}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /stream:
+    get:
+      tags: [notifications]
+      operationId: stream
+      summary: SSE con offer.updated, order.updated, notification.created (ver events.schema.json)
+      description: Máximo 5 conexiones simultáneas por usuario; la sexta recibe 429.
+      responses:
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '200':
+          description: Flujo text/event-stream
+          content:
+            text/event-stream:
+              schema: {type: string}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /producer/offers:
+    get:
+      tags: [producer]
+      operationId: producerListOffers
+      summary: Ofertas de los puestos del productor en cualquier estado (más recientes primero)
+      parameters:
+        - {name: status, in: query, schema: {$ref: '#/components/schemas/OfferStatus'}}
+      responses:
+        '200':
+          description: Ofertas (mismo esquema que GET /offers; `decision` es null)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/OfferDetail'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      tags: [producer]
+      operationId: producerCreateOffer
+      summary: Publica una oferta
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ProducerOfferInput'}
+      responses:
+        '201':
+          description: Oferta creada
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OfferDetail'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /producer/offers/{id}:
+    patch:
+      tags: [producer]
+      operationId: producerUpdateOffer
+      summary: Edita una oferta (solo DRAFT o ACTIVE; nunca cambia `status`)
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ProducerOfferPatch'}
+      responses:
+        '200':
+          description: Oferta actualizada
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OfferDetail'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [producer]
+      operationId: producerDeleteDraft
+      summary: Borra un borrador (solo DRAFT)
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+      responses:
+        '204': {description: Borrador eliminado}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /producer/offers/{id}/publish:
+    post:
+      tags: [producer]
+      operationId: producerPublishOffer
+      summary: Publica un borrador (DRAFT -> ACTIVE); respeta la hora `offers_from` del mercado
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+      responses:
+        '200':
+          description: Oferta publicada
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OfferDetail'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /producer/offers/{id}/withdraw:
+    post:
+      tags: [producer]
+      operationId: producerWithdrawOffer
+      summary: Retira una oferta (solo ACTIVE)
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+      responses:
+        '200':
+          description: Oferta retirada
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OfferDetail'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /producer/orders:
+    get:
+      tags: [producer]
+      operationId: producerListOrders
+      summary: Pedidos del puesto
+      parameters:
+        - {name: status, in: query, schema: {$ref: '#/components/schemas/OrderStatus'}}
+      responses:
+        '200':
+          description: Pedidos
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/Order'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /producer/orders/{id}/accept:
+    post:
+      tags: [producer]
+      operationId: producerAcceptOrder
+      summary: PAID -> PREPARING
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+      responses:
+        '200':
+          description: Pedido aceptado
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Order'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /producer/orders/{id}/reject:
+    post:
+      tags: [producer]
+      operationId: producerRejectOrder
+      summary: PAID -> CANCELLED_BY_PRODUCER -> REFUNDED (reembolso, puntos devueltos, penalización)
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+      responses:
+        '200':
+          description: Pedido rechazado y reembolsado
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Order'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /producer/orders/{id}/deposit:
+    post:
+      tags: [producer]
+      operationId: producerDepositOrder
+      summary: PREPARING -> IN_LOCKER (asigna compartimento y genera código)
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+      responses:
+        '200':
+          description: Pedido depositado
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Order'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /producer/payouts:
+    get:
+      tags: [producer]
+      operationId: producerListPayouts
+      summary: Liquidaciones
+      responses:
+        '200':
+          description: Liquidaciones
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/Payout'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /admin/metrics:
+    get:
+      tags: [admin]
+      operationId: adminMetrics
+      summary: Métricas de impacto
+      responses:
+        '200':
+          description: Métricas agregadas
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Metrics'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /admin/guardrails:
+    put:
+      tags: [admin]
+      operationId: adminPutGuardrails
+      summary: Establece las barandillas municipales
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Guardrails'}
+      responses:
+        '200':
+          description: Barandillas vigentes
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Guardrails'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /admin/calidad:
+    get:
+      tags: [admin]
+      operationId: adminQuality
+      summary: Ejecuta las pruebas de calidad de datos (§16.6) tras refrescar core/marts
+      responses:
+        '200':
+          description: Resultado; `ok` es true si no hay fallos
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/QualityReport'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '503':
+          description: Capas analíticas no instaladas
+          content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}
+  /admin/donations:
+    get:
+      tags: [admin]
+      operationId: adminListDonations
+      summary: Donaciones (más recientes primero)
+      responses:
+        '200':
+          description: Donaciones
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/Donation'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /admin/stalls:
+    post:
+      tags: [admin]
+      operationId: adminCreateStall
+      summary: Alta de puesto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/StallInput'}
+      responses:
+        '201':
+          description: Puesto creado
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Stall'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /open-data/{name}.csv:
+    get:
+      tags: [open-data]
+      security: []
+      operationId: openData
+      summary: Datos abiertos agregados (celdas con menos del umbral mínimo suprimidas)
+      description: "Lee la vista `marts.open_data_{name}` (p. ej. `marts.open_data_daily` para `/open-data/daily.csv`). 503 si el esquema marts no existe; 404 si la vista no existe."
+
+      parameters:
+        - {name: name, in: path, required: true, schema: {type: string, examples: [impact, offers_by_day, sellthrough]}}
+      responses:
+        '200':
+          description: CSV
+          content:
+            text/csv:
+              schema: {type: string}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /demo/clock:
+    post:
+      tags: [demo]
+      operationId: demoClock
+      summary: "SOLO DEMO. Fija o avanza el DemoClock"
+      x-demo-only: true
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              description: "DemoClock es un reloj offset que corre en tiempo real (1 s = 1 s) desde DEMO_CLOCK_START. `set` salta a una hora, `advance_seconds` avanza, `paused` pausa (true) o reanuda (false)."
+              properties:
+                set: {type: string, format: date-time}
+                advance_seconds: {type: integer, minimum: 0}
+                paused: {type: boolean}
+      responses:
+        '200':
+          description: Hora vigente
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [now, paused]
+                properties:
+                  now: {type: string, format: date-time}
+                  paused: {type: boolean}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /demo/simulate:
+    post:
+      tags: [demo]
+      operationId: demoSimulate
+      summary: "SOLO DEMO. Genera demanda sintética"
+      x-demo-only: true
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                offer_id: {type: string, format: uuid}
+                buyers: {type: integer, minimum: 1, maximum: 500}
+                scenario: {type: string, enum: [peak, steady, closing]}
+      responses:
+        '200':
+          description: Resumen de la simulación
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  attempted: {type: integer}
+                  held: {type: integer}
+                  denied: {type: integer}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /demo/reset:
+    post:
+      tags: [demo]
+      operationId: demoReset
+      summary: "SOLO DEMO. Reinicia la base de datos al estado del seed"
+      x-demo-only: true
+      security: []
+      responses:
+        '204': {description: Reiniciado}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /sim/lockers:
+    get:
+      tags: [demo]
+      operationId: simListLockers
+      summary: "SOLO DEMO. Estado de las taquillas virtuales"
+      x-demo-only: true
+      security: []
+      responses:
+        '200':
+          description: Taquillas y compartimentos
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/SimLocker'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /sim/lockers/{locker_id}/network:
+    post:
+      tags: [demo]
+      operationId: simLockerNetwork
+      summary: "SOLO DEMO. Corta o restablece la red de la taquilla (offline: sigue abriendo con los códigos que tenía)"
+      x-demo-only: true
+      security: []
+      parameters:
+        - {name: locker_id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [online]
+              properties:
+                online: {type: boolean}
+      responses:
+        '200':
+          description: Taquilla con su estado de red
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SimLocker'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /sim/lockers/{locker_id}/compartments/{slot}/{action}:
+    post:
+      tags: [demo]
+      operationId: simLockerAction
+      summary: "SOLO DEMO. Acción sobre un compartimento virtual"
+      x-demo-only: true
+      security: []
+      parameters:
+        - {name: locker_id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: slot, in: path, required: true, schema: {type: integer}}
+        - name: action
+          in: path
+          required: true
+          schema: {type: string, enum: [close_door, open_door, enter_code, set_temperature, fail]}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code: {type: string}
+                celsius: {type: number}
+      responses:
+        '200':
+          description: Estado del compartimento
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SimCompartment'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: mc_session
+      description: Cookie de sesión HttpOnly, SameSite=Lax
+  headers:
+    SetSessionCookie:
+      description: mc_session=...; HttpOnly; SameSite=Lax; Path=/
+      schema: {type: string}
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Obligatoria; misma clave devuelve el mismo pedido
+      schema: {type: string, minLength: 8, maxLength: 128}
+  responses:
+    BadRequest:
+      description: Petición inválida
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}
+    Unauthorized:
+      description: Sin sesión o credenciales inválidas
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}
+    Forbidden:
+      description: Sin permiso o regla denegada
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}
+    NotFound:
+      description: No existe (en producción, también para rutas /demo y /sim)
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}
+    Conflict:
+      description: Conflicto de estado, stock o puntos
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}
+    ValidationError:
+      description: Validación fallida
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}
+    RateLimited:
+      description: Demasiadas peticiones
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}
+  schemas:
+    ErrorCode:
+      type: string
+      description: Código estable de error
+      enum:
+        - bad_request
+        - validation_failed
+        - unauthorized
+        - invalid_credentials
+        - forbidden
+        - not_found
+        - conflict
+        - rate_limited
+        - email_taken
+        - account_not_verified
+        - age_not_verified
+        - person_already_registered
+        - idempotency_key_required
+        - idempotency_key_reused
+        - offer_not_active
+        - out_of_stock
+        - no_points
+        - exceeds_max
+        - insufficient_reputation
+        - no_locker_capacity
+        - invalid_transition
+        - payment_failed
+        - invalid_signature
+        - demo_only
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message_key, params]
+          properties:
+            code: {$ref: '#/components/schemas/ErrorCode'}
+            message_key: {type: string, description: "Clave i18n, p. ej. errors.out_of_stock", examples: [errors.no_points]}
+            params: {type: object, additionalProperties: true}
+    RegisterRequest:
+      type: object
+      required: [email, password, display_name]
+      properties:
+        email: {type: string, format: email}
+        password: {type: string, minLength: 8}
+        display_name: {type: string}
+        lang: {type: string, enum: [es, va], default: es}
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: {type: string, format: email}
+        password: {type: string}
+    User:
+      type: object
+      required: [id, email, display_name, role, lang, status, age_verified]
+      properties:
+        id: {type: string, format: uuid}
+        email: {type: string, format: email}
+        display_name: {type: string}
+        role: {type: string, enum: [NEIGHBOR, PRODUCER, MANAGER, ADMIN]}
+        lang: {type: string, enum: [es, va]}
+        status: {type: string, enum: [PENDING, ACTIVE, SUSPENDED, DELETED]}
+        age_verified: {type: boolean}
+        reputation: {type: number}
+    Stall:
+      type: object
+      required: [id, market_id, name, category]
+      properties:
+        id: {type: string, format: uuid}
+        market_id: {type: string, format: uuid}
+        market_name: {type: string}
+        name: {type: string}
+        category: {type: string}
+    StallInput:
+      type: object
+      required: [market_id, name, category]
+      properties:
+        market_id: {type: string, format: uuid}
+        name: {type: string}
+        category: {type: string}
+        owner_user_id: {type: string, format: uuid}
+    Product:
+      type: object
+      required: [id, name, unit, food_class]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        unit: {type: string}
+        unit_weight_g: {type: [integer, 'null']}
+        vat_rate: {type: number}
+        allergens: {type: array, items: {type: string}}
+        food_class: {type: string, enum: [REFRIGERATED, AMBIENT]}
+        usual_price_cents: {type: [integer, 'null']}
+        photo_url: {type: [string, 'null']}
+    OfferStatus:
+      type: string
+      enum: [DRAFT, ACTIVE, SOLD_OUT, EXPIRED, WITHDRAWN, DONATED, DISCARDED]
+    Offer:
+      type: object
+      required: [id, stall, product, qty_total, qty_available, price_cents, pickup_from, pickup_until, status, consume_by]
+      properties:
+        id: {type: string, format: uuid}
+        stall: {$ref: '#/components/schemas/Stall'}
+        product: {$ref: '#/components/schemas/Product'}
+        qty_total: {type: integer}
+        qty_available: {type: integer}
+        effective_stock: {type: integer, description: "min(qty_available, locker_free_slots)"}
+        price_cents: {type: integer}
+        reference_price_cents: {type: [integer, 'null']}
+        pickup_from: {type: string, format: date-time}
+        pickup_until: {type: string, format: date-time}
+        status: {$ref: '#/components/schemas/OfferStatus'}
+        consume_by: {type: string, enum: [TODAY, BEST_BEFORE]}
+    Decision:
+      type: object
+      required: [allowed, points_cost, max_units, reasons, rules_applied]
+      properties:
+        allowed: {type: boolean}
+        points_cost: {type: integer, description: Coste en puntos por unidad
+          solicitada (qty=1 si no se indica)}
+        max_units: {type: integer}
+        reasons:
+          type: array
+          description: Claves de motivo de denegación o explicación (message_key)
+          items: {type: string}
+        rules_applied:
+          type: array
+          items: {type: string}
+    OfferDetail:
+      allOf:
+        - $ref: '#/components/schemas/Offer'
+        - type: object
+          required: [decision]
+          properties:
+            decision:
+              description: Decisión del motor para el usuario; null sin sesión
+              oneOf:
+                - $ref: '#/components/schemas/Decision'
+                - type: 'null'
+            policy_profile: {type: string, enum: [LIBRE, EQUILIBRADO, ESTRICTO, PERSONALIZADO]}
+    ProducerOfferInput:
+      type: object
+      required: [stall_id, product_id, qty_total, price_cents, pickup_from, pickup_until, consume_by]
+      properties:
+        stall_id: {type: string, format: uuid}
+        product_id: {type: string, format: uuid}
+        qty_total: {type: integer, minimum: 1}
+        price_cents: {type: integer, minimum: 0}
+        reference_price_cents: {type: integer, minimum: 0}
+        pickup_from: {type: string, format: date-time}
+        pickup_until: {type: string, format: date-time}
+        consume_by: {type: string, enum: [TODAY, BEST_BEFORE]}
+        profile: {type: string, enum: [LIBRE, EQUILIBRADO, ESTRICTO, PERSONALIZADO], default: EQUILIBRADO}
+        policy: {$ref: '#/components/schemas/Policy'}
+        publish: {type: boolean, default: true}
+    ProducerOfferPatch:
+      type: object
+      properties:
+        qty_total: {type: integer, minimum: 1}
+        price_cents: {type: integer, minimum: 0}
+        reference_price_cents: {type: integer, minimum: 0}
+        pickup_from: {type: string, format: date-time}
+        pickup_until: {type: string, format: date-time}
+        profile: {type: string, enum: [LIBRE, EQUILIBRADO, ESTRICTO, PERSONALIZADO]}
+        policy: {$ref: '#/components/schemas/Policy'}
+    Policy:
+      type: object
+      description: Política JSON de la sección 10.4
+      required: [base]
+      properties:
+        version: {type: integer}
+        base:
+          type: object
+          required: [points_per_unit, max_units_per_user]
+          properties:
+            points_per_unit: {type: number}
+            max_units_per_user: {type: integer}
+            min_reputation: {type: number}
+        rules:
+          type: array
+          items:
+            type: object
+            required: [id, when, then]
+            properties:
+              id: {type: string}
+              when: {type: object, additionalProperties: true}
+              then: {type: object, additionalProperties: true}
+        bounds:
+          type: object
+          additionalProperties:
+            type: array
+            items: {type: number}
+            minItems: 2
+            maxItems: 2
+    CreateOrderRequest:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [offer_id, qty]
+            properties:
+              offer_id: {type: string, format: uuid}
+              qty: {type: integer, minimum: 1}
+    OrderStatus:
+      type: string
+      enum: [HELD, PAID, EXPIRED_HOLD, PREPARING, CANCELLED_BY_PRODUCER, IN_LOCKER, PICKED_UP, NO_SHOW, TEMP_ALARM, REFUNDED]
+    OrderItem:
+      type: object
+      required: [offer_id, qty, unit_cents]
+      properties:
+        offer_id: {type: string, format: uuid}
+        product_name: {type: string}
+        qty: {type: integer}
+        unit_cents: {type: integer}
+    Order:
+      type: object
+      required: [id, status, total_cents, points_cost, rules_applied, pickup_until, created_at, items]
+      properties:
+        id: {type: string, format: uuid}
+        stall: {$ref: '#/components/schemas/Stall'}
+        status: {$ref: '#/components/schemas/OrderStatus'}
+        total_cents: {type: integer}
+        points_cost: {type: integer}
+        rules_applied:
+          type: array
+          items: {type: string}
+        hold_expires_at: {type: [string, 'null'], format: date-time}
+        pickup_until: {type: string, format: date-time}
+        created_at: {type: string, format: date-time}
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/OrderItem'}
+        locker:
+          type: [object, 'null']
+          properties:
+            locker_id: {type: string, format: uuid}
+            market_name: {type: string}
+            slot: {type: integer}
+        pickup_code:
+          type: [string, 'null']
+          description: Solo presente cuando status = IN_LOCKER (y solo para el comprador)
+    PaymentIntent:
+      type: object
+      required: [order_id, payment_id, status, provider]
+      properties:
+        order_id: {type: string, format: uuid}
+        payment_id: {type: string, format: uuid}
+        provider: {type: string}
+        status: {type: string, enum: [PENDING, PAID, FAILED, REFUNDED]}
+        checkout_url: {type: [string, 'null']}
+    PaymentWebhook:
+      type: object
+      required: [provider_ref, status]
+      properties:
+        provider_ref: {type: string}
+        status: {type: string, enum: [PAID, FAILED]}
+        amount_cents: {type: integer}
+    Points:
+      type: object
+      required: [week_key, allowance, spent, left, renews_at]
+      properties:
+        week_key: {type: string, examples: ['2026-W42']}
+        allowance: {type: integer}
+        spent: {type: integer}
+        left: {type: integer}
+        renews_at: {type: string, format: date-time}
+    Notification:
+      type: object
+      required: [id, kind, payload, created_at]
+      properties:
+        id: {type: integer}
+        kind: {type: string, examples: [OFFER_MATCH, ORDER_READY, ORDER_CANCELLED]}
+        payload: {type: object, additionalProperties: true}
+        read_at: {type: [string, 'null'], format: date-time}
+        created_at: {type: string, format: date-time}
+    Payout:
+      type: object
+      required: [id, stall_id, amount_cents, status]
+      properties:
+        id: {type: string, format: uuid}
+        stall_id: {type: string, format: uuid}
+        period_from: {type: string, format: date}
+        period_to: {type: string, format: date}
+        gross_cents: {type: integer}
+        commission_cents: {type: integer}
+        amount_cents: {type: integer}
+        status: {type: string, enum: [PENDING, PAID]}
+        paid_at: {type: [string, 'null'], format: date-time}
+    QualityReport:
+      type: object
+      required: [ok, failures, checked_at]
+      properties:
+        ok: {type: boolean}
+        checked_at: {type: string, format: date-time, description: Hora del Clock}
+        failures:
+          type: array
+          items:
+            type: object
+            required: [test, detail]
+            properties:
+              test: {type: string}
+              detail: {type: string}
+    Donation:
+      type: object
+      required: [id, offer_id, charity_id, qty, status, created_at]
+      properties:
+        id: {type: string, format: uuid}
+        offer_id: {type: string, format: uuid}
+        product_name: {type: string}
+        charity_id: {type: string, format: uuid}
+        charity_name: {type: string}
+        qty: {type: integer}
+        status: {type: string, enum: [OFFERED, COMPLETED]}
+        created_at: {type: string, format: date-time}
+        completed_at: {type: [string, 'null'], format: date-time}
+    Guardrails:
+      type: object
+      properties:
+        max_points_per_unit: {type: integer}
+        max_units_per_user: {type: integer}
+        max_price_ratio: {type: [number, 'null'], description: "Tope sobre el precio habitual (1.0 = x1,0)"}
+        weekly_allowance: {type: integer}
+        min_open_data_cell: {type: integer, description: Umbral mínimo de pedidos por celda}
+    Metrics:
+      type: object
+      properties:
+        kg_rescued: {type: number}
+        kg_donated: {type: number}
+        sell_through: {type: number}
+        sold_out_rate: {type: number}
+        no_show_rate: {type: number}
+        points_denial_rate: {type: number}
+        locker_utilization: {type: number}
+        co2_avoided_kg: {type: [number, 'null']}
+        producer_revenue_cents: {type: integer}
+        heatmap:
+          type: array
+          items:
+            type: object
+            properties:
+              weekday: {type: integer}
+              hour: {type: integer}
+              orders: {type: integer}
+    SimCompartment:
+      type: object
+      required: [slot, size, zone, status]
+      properties:
+        slot: {type: integer}
+        size: {type: string, enum: [S, M, L]}
+        zone: {type: string, enum: [REFRIGERATED, AMBIENT]}
+        status: {type: string, enum: [FREE, RESERVED, OCCUPIED, OUT_OF_SERVICE]}
+        door: {type: string, enum: [OPEN, CLOSED]}
+        celsius: {type: [number, 'null']}
+        order_id: {type: [string, 'null'], format: uuid}
+    SimLocker:
+      type: object
+      required: [id, device_id, compartments]
+      properties:
+        id: {type: string, format: uuid}
+        device_id: {type: string}
+        online: {type: boolean, description: "false = sin red; los eventos se sincronizan al volver"}
+        market_id: {type: string, format: uuid}
+        compartments:
+          type: array
+          items: {$ref: '#/components/schemas/SimCompartment'}

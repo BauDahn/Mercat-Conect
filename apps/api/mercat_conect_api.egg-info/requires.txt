@@ -1,0 +1,9 @@
+fastapi<0.137,>=0.115
+uvicorn[standard]<0.40,>=0.32
+sqlalchemy<2.1,>=2.0.36
+alembic<1.18,>=1.14
+psycopg[binary]<3.4,>=3.2
+pydantic-settings<2.12,>=2.6
+argon2-cffi<26,>=23.1
+httpx<0.29,>=0.27
+tzdata>=2026.5

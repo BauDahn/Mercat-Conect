@@ -1,0 +1,89 @@
+# Demo reproducible en localhost. Arranque: make demo. Puertos y claves en .env.
+name: mercat-conect
+
+x-api-build: &api-build
+  context: .
+  dockerfile: apps/api/Dockerfile
+
+x-api-env: &api-env
+  env_file: .env
+  environment:
+    DATABASE_URL: postgresql+psycopg://mercat:mercat@db:5432/mercat
+    SMTP_HOST: mailpit
+    SMTP_PORT: "1025"
+
+services:
+  db:
+    image: postgres:16.4
+    environment:
+      POSTGRES_USER: mercat
+      POSTGRES_PASSWORD: mercat
+      POSTGRES_DB: mercat
+    ports:
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mercat -d mercat"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:v1.20.2
+    ports:
+      - "127.0.0.1:${SMTP_PORT:-1025}:1025"
+      - "127.0.0.1:8025:8025"
+    restart: unless-stopped
+
+  # Tarea única: migra y carga el seed. Se lanza con `make demo` / `make seed` (no con `up`).
+  seed:
+    build: *api-build
+    image: mercat-conect-api:demo
+    profiles: ["seed"]
+    <<: *api-env
+    command: >
+      sh -c "uv run --project apps/api alembic -c apps/api/alembic.ini upgrade head &&
+             uv run --project apps/api python data/seed/run.py"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    build: *api-build
+    image: mercat-conect-api:demo
+    <<: *api-env
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: apps/web
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      # Dentro de la red de Compose, la API es el servicio "api".
+      API_TARGET: http://api:8000
+    ports:
+      - "127.0.0.1:${WEB_PORT:-5173}:5173"
+    volumes:
+      - ./apps/web:/app
+      - web_node_modules:/app/node_modules
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  metabase:
+    profiles: ["analytics"]
+    image: metabase/metabase:v0.50.30
+    ports:
+      - "127.0.0.1:3000:3000"
+
+volumes:
+  pgdata:
+  web_node_modules:

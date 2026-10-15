@@ -1,0 +1,18 @@
+# Dependencias y entornos
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+
+# Configuración local (secretos de demo incluidos)
+.env
+
+# Compilados y artefactos
+dist/
+playwright-report/
+test-results/
+.pytest_cache/
+.ruff_cache/
+
+# Estado de la demo sin Docker (datos PostgreSQL, logs, PIDs)
+.demo/

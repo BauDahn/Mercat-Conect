@@ -1,0 +1,14 @@
+Metadata-Version: 2.4
+Name: mercat-conect-api
+Version: 0.1.0
+Summary: Backend FastAPI de Mercat-Conect
+Requires-Python: >=3.12
+Requires-Dist: fastapi<0.137,>=0.115
+Requires-Dist: uvicorn[standard]<0.40,>=0.32
+Requires-Dist: sqlalchemy<2.1,>=2.0.36
+Requires-Dist: alembic<1.18,>=1.14
+Requires-Dist: psycopg[binary]<3.4,>=3.2
+Requires-Dist: pydantic-settings<2.12,>=2.6
+Requires-Dist: argon2-cffi<26,>=23.1
+Requires-Dist: httpx<0.29,>=0.27
+Requires-Dist: tzdata>=2026.5
