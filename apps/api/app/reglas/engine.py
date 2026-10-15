@@ -3,10 +3,10 @@ import math
 from dataclasses import dataclass, field
 
 DEFAULT_GUARDRAILS = {
-    "max_points_per_unit": 6,
+    "max_points_per_unit": 30,
     "max_units_per_user": 10,
     "max_price_ratio": None,
-    "weekly_allowance": 20,
+    "weekly_allowance": 100,
     "min_open_data_cell": 5,
 }
 SIGNAL_NAMES = {"stock_ratio", "demand_velocity", "minutes_to_close", "locker_free_slots",
@@ -24,6 +24,7 @@ class Signals:
     time_band: str
     locker_free_slots: int
     local_minutes: int  # minutos desde medianoche, hora de Madrid
+    saving_cents: int = 0  # precio habitual - precio de oferta (>= 0)
 
 
 @dataclass(frozen=True)
@@ -91,7 +92,10 @@ def validate_policy(policy: dict) -> list[str]:
         return ["base requerido"]
     ppu = base.get("points_per_unit")
     mx = base.get("max_units_per_user")
-    if not isinstance(ppu, (int, float)) or ppu < 0:
+    ppe = base.get("points_per_euro")
+    if ppe is not None and (not isinstance(ppe, (int, float)) or ppe < 0):
+        errs.append("base.points_per_euro inválido")
+    if ppe is None and (not isinstance(ppu, (int, float)) or ppu < 0):
         errs.append("base.points_per_unit inválido")
     if not isinstance(mx, int) or mx < 1:
         errs.append("base.max_units_per_user inválido")
@@ -118,7 +122,11 @@ def resolve_params(user: UserFacts, sig: Signals, policy: dict, guardrails: dict
     """Pasos 1-4 de la sección 10.4. Devuelve (ppu, max_units, min_rep, reglas_aplicadas)."""
     g = {**DEFAULT_GUARDRAILS, **(guardrails or {})}
     base = policy["base"]
-    ppu = float(base["points_per_unit"])
+    if base.get("points_per_euro") is not None:
+        # coste base = max(1, round(ahorro_en_euros x K)); el descuento aprovechado cuesta más puntos
+        ppu = float(max(1, math.floor(max(0, sig.saving_cents) / 100 * float(base["points_per_euro"]) + 0.5)))
+    else:
+        ppu = float(base["points_per_unit"])
     anchor = ppu
     max_units = int(base["max_units_per_user"])
     min_rep = float(base.get("min_reputation", 0))

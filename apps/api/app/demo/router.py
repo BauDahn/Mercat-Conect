@@ -7,9 +7,9 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app import ratelimit
@@ -18,6 +18,8 @@ from app.db.models import Offer, User, UserIdentity
 from app.db.session import SessionLocal, get_db, reset_engine
 from app.errors import ApiError
 from app.eventos import analytics
+from app.eventos.outbox import emit
+from app.notificaciones import service as notif
 from app.identidad.security import person_hash
 from app.pedidos import service as pedidos
 from app.planificador import run_due
@@ -101,6 +103,21 @@ def simulate(body: SimBody, db: Session = Depends(get_db)):
     return {"attempted": body.buyers, "held": held, "denied": denied}
 
 
+@router.post("/demo/clear-offers", status_code=204)
+def clear_offers(db: Session = Depends(get_db)):
+    """Retira todas las ofertas vivas (borradores, activas, agotadas). Los pedidos ya hechos se conservan
+    y siguen su curso normal; no se tocan usuarios, puestos, taquillas ni plantillas."""
+    now = get_clock().now()
+    ids = list(db.scalars(select(Offer.id).where(Offer.status.in_(("DRAFT", "ACTIVE", "SOLD_OUT")))
+                          .order_by(Offer.id).with_for_update()))
+    for oid in ids:
+        db.execute(text("UPDATE offers SET status='WITHDRAWN' WHERE id=:o"), {"o": oid})
+        emit(db, now, "offer.withdrawn", oid, {"offer_id": str(oid), "qty_remaining": 0, "cause": "demo_clear"})
+        notif.publish_offer(db, oid)
+    db.commit()
+    return Response(status_code=204)
+
+
 @router.post("/demo/reset", status_code=204)
 def reset(db: Session = Depends(get_db)):
     script = REPO_ROOT / "data" / "seed" / "run.py"
@@ -110,7 +127,8 @@ def reset(db: Session = Depends(get_db)):
     reset_engine()
     s = get_settings()
     import os
-    env = {**os.environ, "DATABASE_URL": s.DATABASE_URL, "DEMO_SEED": str(s.DEMO_SEED)}
+    env = {**os.environ, "PGOPTIONS": "-c lock_timeout=20000 -c idle_in_transaction_session_timeout=60000",
+           "DATABASE_URL": s.DATABASE_URL, "DEMO_SEED": str(s.DEMO_SEED)}
     r = subprocess.run([sys.executable, str(script)], cwd=REPO_ROOT, env=env, capture_output=True, text=True,
                        timeout=180)
     if r.returncode != 0:

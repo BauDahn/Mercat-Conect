@@ -21,6 +21,7 @@ export function DemoPage() {
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)
+  const [confirmClear, setConfirmClear] = useState(false)
 
   async function run(fn: () => Promise<string | void>) {
     setBusy(true)
@@ -58,6 +59,12 @@ export function DemoPage() {
     return t('demo.resetDone')
   })
 
+  const clearOffers = () => run(async () => {
+    await api.demoClearOffers()
+    setConfirmClear(false)
+    return t('demo.clearDone')
+  })
+
   return (
     <div className="space-y-4">
       <PageTitle sub={t('demo.sub')}>{t('demo.title')}</PageTitle>
@@ -91,6 +98,19 @@ export function DemoPage() {
           {t('demo.payFail')}
         </label>
         <Link className="btn btn-secondary" to="/sim/taquillas"><Icon name="therm" /> {t('demo.coldAlarm')}</Link>
+      </section>
+
+      <section className="card space-y-3 p-4" aria-labelledby="clr-h">
+        <h2 id="clr-h" className="flex items-center gap-2 text-lg font-bold"><Icon name="basket" /> {t('demo.clearOffers')}</h2>
+        <p className="text-sm text-muted">{t('demo.clearHint')}</p>
+        {confirmClear ? (
+          <div className="flex gap-2">
+            <button className="btn btn-danger" disabled={busy} onClick={clearOffers}>{t('demo.clearConfirm')}</button>
+            <button className="btn btn-secondary" onClick={() => setConfirmClear(false)}>{t('common.cancel')}</button>
+          </div>
+        ) : (
+          <button className="btn btn-danger" onClick={() => setConfirmClear(true)}>{t('demo.clearOffers')}</button>
+        )}
       </section>
 
       <section className="card space-y-3 p-4" aria-labelledby="rst-h">

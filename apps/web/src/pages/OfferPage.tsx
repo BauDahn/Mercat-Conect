@@ -10,7 +10,7 @@ import { useAuth } from '../state/auth'
 import { useLive } from '../state/live'
 import { useAsync, useOnline } from '../lib/hooks'
 import { cardState } from '../lib/offers'
-import { dateLong, money, timeHM, uuid } from '../lib/format'
+import { dateLong, distanceLabel, money, timeHM, uuid } from '../lib/format'
 
 export function OfferPage() {
   const { id = '' } = useParams()
@@ -104,6 +104,9 @@ export function OfferPage() {
             <li className="flex items-center gap-2"><Icon name={refrigerated ? 'therm' : 'box'} className="h-4 w-4" />
               {t('offer.pickupPlace', { kind: refrigerated ? t('offer.lockerCold') : t('offer.lockerAmbient'), day: dateLong(o.pickup_from, lang), from: timeHM(o.pickup_from, lang), to: timeHM(o.pickup_until, lang) })}
             </li>
+            {o.distance_m != null && (
+              <li className="flex items-center gap-2"><Icon name="pin" className="h-4 w-4" />{t('offer.distance', { d: distanceLabel(o.distance_m, lang) })}</li>
+            )}
             <li>{t('offer.allergens')}: {o.product.allergens?.length ? o.product.allergens.join(', ') : t('offer.noAllergens')} · {o.consume_by === 'TODAY' ? t('offer.consumeToday') : t('offer.bestBefore')}</li>
             <li>{t('offer.left', { n: o.effective_stock ?? o.qty_available, count: o.effective_stock ?? o.qty_available })}</li>
           </ul>

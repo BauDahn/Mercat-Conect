@@ -34,7 +34,7 @@ def test_compra_basica_y_idempotencia(db, world):
     assert buy(u.id, o.id, 1, key) == ("err", "idempotency_key_reused")
     db.expire_all()
     assert db.execute(text("select qty_available from offers")).scalar() == 3
-    assert db.execute(text("select spent from points_week")).scalar() == 4
+    assert db.execute(text("select spent from points_week")).scalar() == 16   # ahorro 1,50 EUR x K5 = 8 pt/ud x 2
     assert db.execute(text("select count(*) from orders")).scalar() == 1
 
 
@@ -42,7 +42,7 @@ def test_sin_puntos_y_stock_no_cambian_nada(db, world):
     u = world.make_user("luis")
     o = world.make_offer(qty=5)
     db.execute(text("insert into points_week (user_id, week_key, allowance, spent) "
-                    "values (:u, '2026-W42', 20, 20)"), {"u": u.id})
+                    "values (:u, '2026-W42', 100, 100)"), {"u": u.id})
     db.commit()
     assert buy(u.id, o.id) == ("err", "no_points")
     db.expire_all()
@@ -89,4 +89,4 @@ def test_mismo_usuario_concurrente_no_supera_saldo(db, world):
     [t.join() for t in threads]
     db.expire_all()
     spent = db.execute(text("select spent from points_week")).scalar()
-    assert spent <= 20 and spent == 3 * len([r for r in results if r[0] == "ok"])
+    assert spent <= 100 and spent == 3 * len([r for r in results if r[0] == "ok"])

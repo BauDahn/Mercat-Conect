@@ -58,7 +58,7 @@ def test_recorrido_completo(client, db, world):
     o = world.make_offer(qty=5)
     c = login(new_client(), "marta@demo.test")
     d = c.get(f"/offers/{o.id}").json()
-    assert d["decision"]["allowed"] and d["decision"]["points_cost"] == 2
+    assert d["decision"]["allowed"] and d["decision"]["points_cost"] == 8
     assert client.get(f"/offers/{o.id}").json()["decision"] is None
     assert len(client.get("/offers").json()["items"]) == 1
     assert order(c, o.id, 1, "key-k1-0001").status_code == 201
@@ -66,7 +66,7 @@ def test_recorrido_completo(client, db, world):
     assert r.status_code == 200
     ordr = r.json()
     assert ordr["status"] == "HELD" and ordr["pickup_code"] is None
-    assert c.get("/me/points").json()["left"] == 18
+    assert c.get("/me/points").json()["left"] == 92
     r = c.post("/orders", json={"items": [{"offer_id": str(o.id), "qty": 1}]})
     assert r.status_code == 400 and r.json()["error"]["code"] == "idempotency_key_required"
     # pago con fallo y reintento
@@ -124,7 +124,7 @@ def test_deposito_via_simulador_y_no_show(client, db, world):
     r = client.post("/demo/clock", json={"advance_seconds": 3 * 3600})
     assert r.status_code == 200
     got = c.get(f"/orders/{oid}").json()
-    assert got["status"] == "NO_SHOW" and c.get("/me/points").json()["left"] == 18   # sin devolución
+    assert got["status"] == "NO_SHOW" and c.get("/me/points").json()["left"] == 92   # sin devolución
     assert float(db.execute(text("select reputation from users where email='marta@demo.test'")).scalar()) == 0.9
     assert db.execute(text("select count(*) from donations")).scalar() >= 0
     assert db.execute(text("select status from compartments where slot=:s"), {"s": slot}).scalar() == "FREE"
@@ -144,7 +144,7 @@ def test_caducidad_reserva_y_pago_tardio(client, db, world, monkeypatch):
     client.post("/demo/clock", json={"advance_seconds": 5 * 60})    # llega el webhook tardío
     got = c.get(f"/orders/{oid}").json()
     assert got["status"] == "EXPIRED_HOLD"
-    assert c.get("/me/points").json()["left"] == 20
+    assert c.get("/me/points").json()["left"] == 100
     assert db.execute(text("select qty_available from offers")).scalar() == 3
     assert db.execute(text("select status from payments")).scalar() == "REFUNDED"   # webhook tardío reembolsado
 
@@ -164,7 +164,7 @@ def test_alarma_temperatura(client, db, world):
     assert c.get(f"/orders/{oid}").json()["status"] == "IN_LOCKER"        # aún no pasaron 15 min
     client.post("/demo/clock", json={"advance_seconds": 16 * 60})
     assert c.get(f"/orders/{oid}").json()["status"] == "REFUNDED"
-    assert c.get("/me/points").json()["left"] == 20
+    assert c.get("/me/points").json()["left"] == 100
     assert db.execute(text("select status from compartments where slot=:s"), {"s": slot}).scalar() == "OUT_OF_SERVICE"
     assert db.execute(text("select count(*) from domain_events where event_type='locker.alarm'")).scalar() == 1
     assert db.execute(text("select status from payments")).scalar() == "REFUNDED"

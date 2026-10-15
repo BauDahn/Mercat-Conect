@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     PICKUP_GRACE_MINUTES: int = 15    # ventana mínima de retirada tras depositar (supuesto)
     SESSION_TTL_HOURS: int = 168
     COOKIE_SECURE: bool = False
-    DEFAULT_ALLOWANCE: int = 20       # sección 10.6 (supuesto)
+    DEFAULT_ALLOWANCE: int = 100      # sección 10.6 (supuesto)
     TEMP_ALARM_CELSIUS: float = 5.0   # sección 13.5 (supuesto)
     TEMP_ALARM_MINUTES: int = 15
     DAILY_NOTIFICATION_CAP: int = 5   # sección 14.2
@@ -41,6 +41,12 @@ class Settings(BaseSettings):
     SSE_MAX_PER_USER: int = 5
     PRODUCER_PENALTY: float = 0.05
     ANALYTICS_REFRESH_SECONDS: int = 60
+    DEMO_LOCATION: str = "39.4893,-0.3585"  # Plaça de Benimaclet (ubicación simulada del vecino)
+
+    @property
+    def demo_location(self) -> tuple[float, float]:
+        a, b = self.DEMO_LOCATION.split(",")
+        return float(a), float(b)
 
     @property
     def allowed_hosts_list(self) -> list[str]:

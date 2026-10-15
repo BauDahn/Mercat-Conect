@@ -1,6 +1,6 @@
 import type {
   Guardrails, Metrics, Notification, Offer, OfferDetail, Order, OrderStatus, PaymentIntent, Payout, Points,
-  Donation, Product, ProducerOfferInput, ProducerOfferPatch, SimCompartment, SimLocker, Stall, StallInput, User,
+  Donation, Product, ProducerOfferInput, ProducerOfferPatch, ProductInput, SimCompartment, SimLocker, Stall, StallInput, User,
 } from './types'
 
 export const API_BASE = '/api'
@@ -32,12 +32,14 @@ async function request<T>(method: string, path: string, opts: Opts = {}): Promis
   for (const [k, v] of Object.entries(opts.query ?? {})) if (v !== undefined && v !== null && v !== '') qs.set(k, String(v))
   const url = `${API_BASE}${path}${qs.size ? `?${qs}` : ''}`
   const headers: Record<string, string> = { Accept: 'application/json', ...opts.headers }
-  if (opts.body !== undefined) headers['Content-Type'] = 'application/json'
+  // FormData (multipart) lo gestiona el navegador: no se fija Content-Type ni se serializa.
+  const isForm = opts.body instanceof FormData
+  if (opts.body !== undefined && !isForm) headers['Content-Type'] = 'application/json'
   const res = await fetch(url, {
     method,
     headers,
     credentials: 'same-origin',
-    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+    body: opts.body === undefined ? undefined : isForm ? (opts.body as FormData) : JSON.stringify(opts.body),
   })
   if (!res.ok) {
     // Tolerante: el cuerpo de error puede no seguir el formato {error:{...}}.
@@ -92,6 +94,12 @@ export const api = {
   // productor
   producerListOffers: (status?: string) => get<{ items: OfferDetail[] }>('/producer/offers', { status }),
   producerCreateOffer: (b: ProducerOfferInput) => post<OfferDetail>('/producer/offers', b),
+  producerCreateProduct: (b: ProductInput) => post<Product>('/producer/products', b),
+  producerUploadProductPhoto: (id: string, file: File) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    return post<{ photo_url: string }>(`/producer/products/${id}/photo`, fd)
+  },
   producerUpdateOffer: (id: string, b: ProducerOfferPatch) => request<OfferDetail>('PATCH', `/producer/offers/${id}`, { body: b }),
   producerPublish: (id: string) => post<OfferDetail>(`/producer/offers/${id}/publish`),
   producerDeleteDraft: (id: string) => request<void>('DELETE', `/producer/offers/${id}`),
@@ -115,6 +123,7 @@ export const api = {
   demoSimulate: (b: { offer_id?: string; buyers?: number; scenario?: 'peak' | 'steady' | 'closing' }) =>
     post<{ attempted?: number; held?: number; denied?: number }>('/demo/simulate', b),
   demoReset: () => post<void>('/demo/reset'),
+  demoClearOffers: () => post<void>('/demo/clear-offers'),
   simLockers: () => get<{ items: SimLocker[] }>('/sim/lockers'),
   simLockerNetwork: (id: string, online: boolean) => post<SimLocker>(`/sim/lockers/${id}/network`, { online }),
   simLockerAction: (lockerId: string, slot: number, action: string, body?: { code?: string; celsius?: number }) =>

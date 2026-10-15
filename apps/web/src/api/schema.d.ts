@@ -707,6 +707,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/demo/clear-offers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** SOLO DEMO. Retira todas las ofertas (dejan de listarse); avisa por SSE */
+        post: operations["demoClearOffers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sim/lockers": {
         parameters: {
             query?: never;
@@ -821,6 +838,10 @@ export interface components {
             market_lat?: number | null;
             /** @description Longitud del mercado */
             market_lng?: number | null;
+            /** @description Latitud propia del puesto (aproximada en la demo); si es null se usa la del mercado */
+            lat?: number | null;
+            /** @description Longitud propia del puesto */
+            lng?: number | null;
             name: string;
             category: string;
         };
@@ -878,6 +899,8 @@ export interface components {
             qty_available: number;
             /** @description min(qty_available, locker_free_slots) */
             effective_stock?: number;
+            /** @description Metros desde la ubicación del vecino (lat/lng o DEMO_LOCATION) hasta el puesto; calculado en servidor */
+            distance_m?: number | null;
             price_cents: number;
             reference_price_cents?: number | null;
             /** Format: date-time */
@@ -942,7 +965,10 @@ export interface components {
         Policy: {
             version?: number;
             base: {
+                /** @description Coste fijo por unidad; se ignora si hay points_per_euro */
                 points_per_unit: number;
+                /** @description K de puntos por euro ahorrado (LIBRE 3, EQUILIBRADO 5, ESTRICTO 8). Coste base = max(1, round(ahorro_eur x K)), ahorro = precio habitual - precio de oferta */
+                points_per_euro?: number;
                 max_units_per_user: number;
                 min_reputation?: number;
             };
@@ -1018,6 +1044,10 @@ export interface components {
         Points: {
             /** @example 2026-W42 */
             week_key: string;
+            /**
+             * @description Puntos semanales (por defecto 100)
+             * @example 100
+             */
             allowance: number;
             spent: number;
             left: number;
@@ -1087,10 +1117,12 @@ export interface components {
             completed_at?: string | null;
         };
         Guardrails: {
+            /** @description Tope de puntos por unidad (por defecto 30) */
             max_points_per_unit?: number;
             max_units_per_user?: number;
             /** @description Tope sobre el precio habitual (1.0 = x1,0) */
             max_price_ratio?: number | null;
+            /** @description Puntos semanales (por defecto 100) */
             weekly_allowance?: number;
             /** @description Umbral mínimo de pedidos por celda */
             min_open_data_cell?: number;
@@ -1547,8 +1579,13 @@ export interface operations {
             query?: {
                 market?: string;
                 category?: string;
-                sort?: "closing_soon" | "price_asc" | "price_desc" | "newest" | "distance";
+                /** @description `distance` (por defecto) = más cerca primero, calculado en servidor (haversine) */
+                sort?: "distance" | "closing_soon" | "price_asc" | "price_desc" | "newest";
                 q?: string;
+                /** @description Latitud del vecino; si falta, DEMO_LOCATION (Benimaclet) */
+                lat?: number;
+                /** @description Longitud del vecino; si falta, DEMO_LOCATION */
+                lng?: number;
             };
             header?: never;
             path?: never;
@@ -2354,6 +2391,25 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Reiniciado */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    demoClearOffers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ofertas retiradas */
             204: {
                 headers: {
                     [name: string]: unknown;

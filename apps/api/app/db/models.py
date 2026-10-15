@@ -39,6 +39,8 @@ class Stall(Base):
     owner_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     verified_at: Mapped[datetime | None] = mapped_column(TS)
     payout_account_ref: Mapped[str | None] = mapped_column(Text)
+    lat: Mapped[float | None] = mapped_column(Float)
+    lng: Mapped[float | None] = mapped_column(Float)
 
 
 class User(Base):

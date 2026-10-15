@@ -7,7 +7,7 @@ import { useI18n } from '../i18n'
 import { useAuth } from '../state/auth'
 import { useServerTime } from '../state/servertime'
 import { cardState, discountPct } from '../lib/offers'
-import { minutesLeft, money, timeHM, weekday } from '../lib/format'
+import { distanceLabel, minutesLeft, money, timeHM, weekday } from '../lib/format'
 
 /** Insignias superpuestas sobre la foto (urgencia, descuento, agotada). */
 export function OfferBadges({ o }: { o: Offer }) {
@@ -94,11 +94,17 @@ export function OfferCard({ o, d, compact = false }: { o: Offer; d: Decision | n
             <Icon name="clock" className="h-4 w-4" />
             {t('offer.pickup', { from: timeHM(o.pickup_from, lang), to: timeHM(o.pickup_until, lang) })}
           </span>
+          {o.distance_m != null && (
+            <span className="inline-flex items-center gap-1 font-semibold text-ink">
+              <Icon name="pin" className="h-4 w-4" />
+              {t('offer.distance', { d: distanceLabel(o.distance_m, lang) })}
+            </span>
+          )}
         </div>
         <div className="mt-auto flex items-center justify-between gap-2 border-t border-line pt-2 text-sm">
           {d && !soldOut ? (
             <span className="inline-flex items-center gap-1 font-bold text-brand-dark">
-              <Icon name="star" className="h-4 w-4" /> {t('offer.cost', { n: d.points_cost })}
+              <Icon name="star" className="h-4 w-4" /> {o.reference_price_cents && o.reference_price_cents > o.price_cents ? `${t('offer.saveCost', { save: money(o.reference_price_cents - o.price_cents, lang), n: d.points_cost })}` : t('offer.cost', { n: d.points_cost })}
             </span>
           ) : (
             <span className="text-muted">{soldOut ? t('offer.soldOutLong') : ''}</span>

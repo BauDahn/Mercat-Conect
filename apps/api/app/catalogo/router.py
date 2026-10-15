@@ -32,22 +32,24 @@ SORTS = {"closing_soon", "price_asc", "price_desc", "newest", "distance"}
 
 
 @router.get("/offers")
-def list_offers(market: uuid.UUID | None = None, category: str | None = None, sort: str = "closing_soon",
-                q: str | None = None, user: User | None = Depends(current_user_optional),
+def list_offers(market: uuid.UUID | None = None, category: str | None = None, sort: str = "distance",
+                q: str | None = None, lat: float | None = Query(default=None, ge=-90, le=90),
+                lng: float | None = Query(default=None, ge=-180, le=180), user: User | None = Depends(current_user_optional),
                 db: Session = Depends(get_db)):
     if sort not in SORTS:
         raise ApiError("validation_failed", field="sort")
-    return {"items": service.list_offers(db, get_clock().now(), market, category, sort, q, user)}
+    return {"items": service.list_offers(db, get_clock().now(), market, category, sort, q, user, lat, lng)}
 
 
 @router.get("/offers/{id}")
-def get_offer(id: uuid.UUID, qty: int = Query(default=1, ge=1), user: User | None = Depends(current_user_optional), db: Session = Depends(get_db)):
+def get_offer(id: uuid.UUID, qty: int = Query(default=1, ge=1), lat: float | None = Query(default=None, ge=-90, le=90),
+              lng: float | None = Query(default=None, ge=-180, le=180), user: User | None = Depends(current_user_optional), db: Session = Depends(get_db)):
     now = get_clock().now()
     row = service.load_offer(db, id)
     if row is None or (row[0].status == "DRAFT" and not (user and row[1].owner_user_id == user.id)):
         raise ApiError("not_found")
     o, s, p, m = row
-    out = service.offer_out(o, s, p, m, free_slots_map(db))
+    out = service.offer_out(o, s, p, m, free_slots_map(db), service.origin(lat, lng))
     out["decision"] = None
     out["policy_profile"] = service.policy_profile(db, o.id)
     if user is not None:

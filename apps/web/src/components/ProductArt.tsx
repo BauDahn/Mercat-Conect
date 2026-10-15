@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 import type { Offer } from '../api/types'
-import { productPhoto } from '../lib/photos'
 
 interface Look { emoji: string; from: string; to: string }
 
@@ -21,10 +20,10 @@ export function categoryLook(category: string): Look {
   return LOOKS[category] ?? FALLBACK
 }
 
-/** Zona superior de la tarjeta: foto de ejemplo si la hay; si no, degradado con emoji grande. */
+/** Zona superior de la tarjeta: foto del producto (photo_url) si la hay; si no, degradado con el emoji de su categoría. */
 export function ProductArt({ offer, className = 'h-44', children }: { offer: Offer; className?: string; children?: ReactNode }) {
   const look = categoryLook(offer.stall.category)
-  const photo = offer.product.photo_url || productPhoto(offer.product.name)
+  const photo = offer.product.photo_url
   return (
     <div className={`relative w-full overflow-hidden rounded-t-[inherit] ${className}`} style={photo ? undefined : { background: `linear-gradient(135deg, ${look.from}, ${look.to})` }}>
       {photo ? (

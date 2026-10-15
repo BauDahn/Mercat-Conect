@@ -266,8 +266,11 @@ paths:
         - {name: category, in: query, schema: {type: string}}
         - name: sort
           in: query
-          schema: {type: string, enum: [closing_soon, price_asc, price_desc, newest, distance], default: closing_soon}
+          description: "`distance` (por defecto) = más cerca primero, calculado en servidor (haversine)"
+          schema: {type: string, enum: [distance, closing_soon, price_asc, price_desc, newest], default: distance}
         - {name: q, in: query, schema: {type: string}}
+        - {name: lat, in: query, schema: {type: number, minimum: -90, maximum: 90}, description: "Latitud del vecino; si falta, DEMO_LOCATION (Benimaclet)"}
+        - {name: lng, in: query, schema: {type: number, minimum: -180, maximum: 180}, description: "Longitud del vecino; si falta, DEMO_LOCATION"}
       responses:
         '200':
           description: Ofertas activas
@@ -824,6 +827,16 @@ paths:
       responses:
         '204': {description: Reiniciado}
         '404': {$ref: '#/components/responses/NotFound'}
+  /demo/clear-offers:
+    post:
+      tags: [demo]
+      operationId: demoClearOffers
+      summary: "SOLO DEMO. Retira todas las ofertas (dejan de listarse); avisa por SSE"
+      x-demo-only: true
+      security: []
+      responses:
+        '204': {description: Ofertas retiradas}
+        '404': {$ref: '#/components/responses/NotFound'}
   /sim/lockers:
     get:
       tags: [demo]
@@ -1020,6 +1033,8 @@ components:
         market_name: {type: string}
         market_lat: {type: [number, 'null'], description: Latitud del mercado (el cliente calcula distancias)}
         market_lng: {type: [number, 'null'], description: Longitud del mercado}
+        lat: {type: [number, 'null'], description: "Latitud propia del puesto (aproximada en la demo); si es null se usa la del mercado"}
+        lng: {type: [number, 'null'], description: Longitud propia del puesto}
         name: {type: string}
         category: {type: string}
     StallInput:
@@ -1069,6 +1084,7 @@ components:
         qty_total: {type: integer}
         qty_available: {type: integer}
         effective_stock: {type: integer, description: "min(qty_available, locker_free_slots)"}
+        distance_m: {type: [integer, 'null'], description: "Metros desde la ubicación del vecino (lat/lng o DEMO_LOCATION) hasta el puesto; calculado en servidor"}
         price_cents: {type: integer}
         reference_price_cents: {type: [integer, 'null']}
         pickup_from: {type: string, format: date-time}
@@ -1137,7 +1153,8 @@ components:
           type: object
           required: [points_per_unit, max_units_per_user]
           properties:
-            points_per_unit: {type: number}
+            points_per_unit: {type: number, description: "Coste fijo por unidad; se ignora si hay points_per_euro"}
+            points_per_euro: {type: number, minimum: 0, description: "K de puntos por euro ahorrado (LIBRE 3, EQUILIBRADO 5, ESTRICTO 8). Coste base = max(1, round(ahorro_eur x K)), ahorro = precio habitual - precio de oferta"}
             max_units_per_user: {type: integer}
             min_reputation: {type: number}
         rules:
@@ -1228,7 +1245,7 @@ components:
       required: [week_key, allowance, spent, left, renews_at]
       properties:
         week_key: {type: string, examples: ['2026-W42']}
-        allowance: {type: integer}
+        allowance: {type: integer, description: Puntos semanales (por defecto 100), examples: [100]}
         spent: {type: integer}
         left: {type: integer}
         renews_at: {type: string, format: date-time}
@@ -1284,10 +1301,10 @@ components:
     Guardrails:
       type: object
       properties:
-        max_points_per_unit: {type: integer}
+        max_points_per_unit: {type: integer, description: Tope de puntos por unidad (por defecto 30)}
         max_units_per_user: {type: integer}
         max_price_ratio: {type: [number, 'null'], description: "Tope sobre el precio habitual (1.0 = x1,0)"}
-        weekly_allowance: {type: integer}
+        weekly_allowance: {type: integer, description: Puntos semanales (por defecto 100)}
         min_open_data_cell: {type: integer, description: Umbral mínimo de pedidos por celda}
     Metrics:
       type: object

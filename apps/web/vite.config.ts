@@ -12,6 +12,8 @@ export default defineConfig(({ mode }) => {
   // El contrato no lleva prefijo /api: el proxy lo elimina.
   const proxy = {
     '/api': { target: apiTarget, changeOrigin: false, rewrite: (p: string) => p.replace(/^\/api/, '') },
+    // Fotos subidas por productores: la API las sirve en la raíz (photo_url = /uploads/...).
+    '/uploads': { target: apiTarget, changeOrigin: false },
   }
   return {
     plugins: [

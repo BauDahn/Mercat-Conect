@@ -26,7 +26,7 @@ def test_listado_con_decision(client, db, world):
     assert client.get("/offers").json()["items"][0]["decision"] is None
     c = login(new_client(), "marta@demo.test")
     d = c.get("/offers").json()["items"][0]["decision"]
-    assert d["allowed"] and d["points_cost"] == 2
+    assert d["allowed"] and d["points_cost"] == 8
 
 
 def test_rechazo_del_productor(client, db, world):
@@ -39,7 +39,7 @@ def test_rechazo_del_productor(client, db, world):
     c.post(f"/orders/{oid}/pay", json={})
     r = p.post(f"/producer/orders/{oid}/reject")
     assert r.status_code == 200 and r.json()["status"] == "REFUNDED"
-    assert c.get("/me/points").json()["left"] == 20
+    assert c.get("/me/points").json()["left"] == 100
     assert db.execute(text("select status from payments")).scalar() == "REFUNDED"
     assert db.execute(text("select count(*) from domain_events where event_type='order.cancelled' "
                            "and payload->>'cause'='producer_rejected'")).scalar() == 1

@@ -138,7 +138,7 @@ def test_pago_con_reserva_vencida(client, db, world):
     assert client.post("/payments/webhook/fake", content=raw, headers={"X-Signature": sig}).status_code == 200
     assert c.get(f"/orders/{oid}").json()["status"] == "EXPIRED_HOLD"
     assert db.execute(text("select status from payments")).scalar() == "REFUNDED"
-    assert c.get("/me/points").json()["left"] == 20
+    assert c.get("/me/points").json()["left"] == 100
     # pay_order con reserva vencida: 409 y se libera
     oid2 = order(c, o.id, 1, key="key-otra-0002").json()["id"]
     get_clock().advance(11 * 60)
@@ -151,7 +151,7 @@ def test_decision_con_cantidad(client, db, world):
     o = world.make_offer()
     c = login(new_client(), "marta@demo.test")
     d = c.get(f"/offers/{o.id}", params={"qty": 3}).json()["decision"]
-    assert d["allowed"] and d["points_cost"] == 6
+    assert d["allowed"] and d["points_cost"] == 24
     d = c.get(f"/offers/{o.id}", params={"qty": 4}).json()["decision"]
     assert not d["allowed"] and d["reasons"] == ["errors.exceeds_max"]
     assert c.get(f"/offers/{o.id}", params={"qty": 0}).status_code == 422

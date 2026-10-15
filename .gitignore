@@ -16,3 +16,4 @@ test-results/
 
 # Estado de la demo sin Docker (datos PostgreSQL, logs, PIDs)
 .demo/
+.idea/

@@ -1,26 +1,26 @@
 @import "tailwindcss";
 
-/* Sistema de diseño: paleta cálida (crema, verde profundo, naranja de urgencia, rojo suave de error).
+/* Sistema de diseño: paleta mediterránea (azul profundo, azafrán de urgencia, rojo suave de error).
    Escala de espaciado 4/8 (la de Tailwind), radios 12–16 px, sombras suaves, tipografía con escala clara. */
 @theme {
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --color-paper: #fbf6ec;
-  --color-paper-2: #f3ecdc;
-  --color-brand: #1f5c3a;
-  --color-brand-dark: #164430;
-  --color-brand-soft: #e4f0e6;
-  --color-accent: #a84a10;
-  --color-accent-fill: #f08a3c;
-  --color-accent-soft: #fde8d4;
-  --color-ink: #1e2620;
-  --color-muted: #5b645e;
-  --color-line: #e4dccb;
+  --color-paper: #f6f8fb;
+  --color-paper-2: #e9eef4;
+  --color-brand: #0f4c75;
+  --color-brand-dark: #0a3552;
+  --color-brand-soft: #e0eef7;
+  --color-accent: #8a5a00;
+  --color-accent-fill: #f5b82e;
+  --color-accent-soft: #fdf1cf;
+  --color-ink: #14202b;
+  --color-muted: #55616d;
+  --color-line: #d9e1ea;
   --color-danger: #b42318;
   --color-danger-soft: #fde7e4;
   --color-focus: #1d4ed8;
   --radius-card: 1rem;
-  --shadow-soft: 0 1px 2px rgb(30 38 32 / 0.06), 0 4px 16px rgb(30 38 32 / 0.06);
-  --shadow-lift: 0 2px 4px rgb(30 38 32 / 0.08), 0 12px 28px rgb(30 38 32 / 0.12);
+  --shadow-soft: 0 1px 2px rgb(20 32 43 / 0.06), 0 4px 16px rgb(20 32 43 / 0.06);
+  --shadow-lift: 0 2px 4px rgb(20 32 43 / 0.08), 0 12px 28px rgb(20 32 43 / 0.12);
 }
 
 :root:not([data-theme="light"]) { color-scheme: light; }
