@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { api } from '../api/client'
-import type { Offer, Order, Product, ProducerOfferInput, Stall } from '../api/types'
+import type { Offer, Order, Product, ProducerOfferInput, ProductInput, Stall } from '../api/types'
 import { ErrorBox, Field, Notice, PageTitle, Spinner } from '../components/ui'
 import { StatusBadge, orderTitle } from '../components/OrderBits'
 import { useI18n } from '../i18n'
@@ -21,7 +21,7 @@ function useCatalog(stallId?: string) {
   const offers = useMemo(() => res.data?.items ?? [], [res.data])
   const stalls = useMemo(() => st.data?.items ?? [], [st.data])
   const products = useMemo(() => pr.data?.items ?? [], [pr.data])
-  return { res, st, offers, stalls, products }
+  return { res, st, offers, stalls, products, productsLoading: pr.loading, reloadProducts: pr.reload }
 }
 
 function useMyStall(stalls: Stall[]) {
@@ -38,12 +38,21 @@ function useMyStall(stalls: Stall[]) {
 
 const LAST = 'mc_last_offer'
 
+const PHOTO_MAX_BYTES = 2 * 1024 * 1024
+const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+
+type VatRate = '4' | '10' | '21'
+type FoodClass = 'REFRIGERATED' | 'AMBIENT'
+
 export function ProducerPublish() {
   const { t, lang } = useI18n()
   const { nowMs } = useServerTime()
   const stallsRes = useAsync(() => api.producerStalls(), [])
   const [stall, setStall] = useMyStall(stallsRes.data?.items ?? [])
   const cat = useCatalog(stall)
+  const [mode, setMode] = useState<'existing' | 'new'>('existing')
+  // Sin plantillas en el puesto, el formulario va directamente a "producto nuevo".
+  const newMode = mode === 'new' || (!cat.productsLoading && cat.products.length === 0)
   const [product, setProduct] = useState('')
   const [qty, setQty] = useState('5')
   const [price, setPrice] = useState('')
@@ -51,12 +60,26 @@ export function ProducerPublish() {
   const [until, setUntil] = useState('')
   const [from, setFrom] = useState('')
   const [consume, setConsume] = useState<'TODAY' | 'BEST_BEFORE'>('TODAY')
+  // Producto nuevo
+  const [pName, setPName] = useState('')
+  const [pUnit, setPUnit] = useState('kg')
+  const [pWeight, setPWeight] = useState('')
+  const [pVat, setPVat] = useState<VatRate>('10')
+  const [pFood, setPFood] = useState<FoodClass>('AMBIENT')
+  const [pUsual, setPUsual] = useState('')
+  const [photo, setPhoto] = useState<File | null>(null)
+  const [fileKey, setFileKey] = useState(0)
+  const [formError, setFormError] = useState('')
   const [err, setErr] = useState<unknown>(null)
-  const [done, setDone] = useState<{ ms: number } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [done, setDone] = useState<{ ms: number; photoFailed: boolean } | null>(null)
   const [t0] = useState(() => Date.now())
 
-  const prod = cat.products.find((p) => p.id === product) ?? cat.products[0]
-  const ref = prod?.usual_price_cents ?? null
+  // Producto seleccionado: el estado manda aunque la lista aún no se haya recargado.
+  const selectedId = product || cat.products[0]?.id || ''
+  const prod = cat.products.find((p) => p.id === selectedId)
+  const newUsualCents = pUsual.trim() ? Math.round(parseFloat(pUsual.replace(',', '.')) * 100) : null
+  const ref = newMode ? (newUsualCents !== null && Number.isNaN(newUsualCents) ? null : newUsualCents) : (prod?.usual_price_cents ?? null)
   // Ventana por defecto: la de las ofertas vigentes (cierre del mercado); si no hay, 13:30-14:30.
   const dflFrom = cat.offers.length ? timeHM(cat.offers.reduce((a, o) => (o.pickup_from < a ? o.pickup_from : a), cat.offers[0].pickup_from), 'es') : '13:30'
   const dflUntil = cat.offers.length ? timeHM(cat.offers.reduce((a, o) => (o.pickup_until > a ? o.pickup_until : a), cat.offers[0].pickup_until), 'es') : '14:30'
@@ -67,32 +90,80 @@ export function ProducerPublish() {
     try {
       const l = JSON.parse(localStorage.getItem(LAST) ?? 'null')
       if (!l) return
-      setProduct(l.product); setQty(String(l.qty)); setPrice(String(l.price)); setProfile(l.profile)
+      setMode('existing'); setProduct(l.product); setQty(String(l.qty)); setPrice(String(l.price)); setProfile(l.profile)
     } catch { /* nada guardado */ }
+  }
+
+  function resetNew() {
+    setPName(''); setPWeight(''); setPUsual(''); setPhoto(null); setFileKey((k) => k + 1)
+  }
+
+  function validateNew(): string {
+    const name = pName.trim()
+    if (name.length < 2 || name.length > 80) return t('pub.newNameLen')
+    if (!pUnit.trim()) return t('pub.newUnitReq')
+    if (newUsualCents !== null && Number.isNaN(newUsualCents)) return t('pub.newPrice')
+    if (photo && !PHOTO_TYPES.includes(photo.type)) return t('pub.photoType')
+    if (photo && photo.size > PHOTO_MAX_BYTES) return t('pub.photoTooBig')
+    return ''
   }
 
   async function submit(e: FormEvent) {
     e.preventDefault()
     setErr(null)
-    const day = madridDate(new Date(nowMs()))
-    const body: ProducerOfferInput = {
-      stall_id: stall,
-      product_id: prod.id,
-      qty_total: parseInt(qty, 10),
-      price_cents: priceCents,
-      reference_price_cents: ref ?? undefined,
-      pickup_from: madridISO(day, from || dflFrom),
-      pickup_until: madridISO(day, until || dflUntil),
-      consume_by: consume,
-      profile,
-      publish: true,
+    setFormError('')
+    if (newMode) {
+      const m = validateNew()
+      if (m) { setFormError(m); return }
     }
+    setBusy(true)
+    const day = madridDate(new Date(nowMs()))
     try {
+      let productId = selectedId
+      let refCents = ref
+      let photoFailed = false
+      if (newMode) {
+        const input: ProductInput = {
+          stall_id: stall,
+          name: pName.trim(),
+          unit: pUnit.trim(),
+          unit_weight_g: pWeight.trim() ? parseInt(pWeight, 10) : null,
+          vat_rate: parseInt(pVat, 10) as 4 | 10 | 21,
+          allergens: [],
+          food_class: pFood,
+          usual_price_cents: newUsualCents,
+        }
+        const created = await api.producerCreateProduct(input)
+        productId = created.id
+        refCents = newUsualCents
+        if (photo) {
+          try { await api.producerUploadProductPhoto(created.id, photo) } catch { photoFailed = true }
+        }
+        // Tras crear el producto, pasa a "existente" con él seleccionado: si la oferta falla, reintentar no lo duplica.
+        setMode('existing')
+        setProduct(created.id)
+        resetNew()
+        cat.reloadProducts()
+      }
+      const body: ProducerOfferInput = {
+        stall_id: stall,
+        product_id: productId,
+        qty_total: parseInt(qty, 10),
+        price_cents: priceCents,
+        reference_price_cents: refCents ?? undefined,
+        pickup_from: madridISO(day, from || dflFrom),
+        pickup_until: madridISO(day, until || dflUntil),
+        consume_by: consume,
+        profile,
+        publish: true,
+      }
       await api.producerCreateOffer(body)
-      try { localStorage.setItem(LAST, JSON.stringify({ product: prod.id, qty, price, profile })) } catch { /* ignorar */ }
-      setDone({ ms: Date.now() - t0 })
+      try { localStorage.setItem(LAST, JSON.stringify({ product: productId, qty, price, profile })) } catch { /* ignorar */ }
+      setDone({ ms: Date.now() - t0, photoFailed })
     } catch (x) {
       setErr(x)
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -100,9 +171,11 @@ export function ProducerPublish() {
   return (
     <Shell title={t('pub.title')}>
       {done && <Notice icon="check">{t('pub.done', { s: Math.round(done.ms / 1000) })}</Notice>}
+      {done?.photoFailed && <Notice icon="alert" tone="warn">{t('pub.photoFailed')}</Notice>}
       {!cat.stalls.length && <Notice icon="alert" tone="warn">{t('pub.noStalls')}</Notice>}
       <form onSubmit={submit} className="card mt-3 space-y-4 p-4">
         {!!err && <ErrorBox error={err} />}
+        {!!formError && <p role="alert" className="font-medium text-danger">{formError}</p>}
         {cat.stalls.length > 1 && (
           <Field label={t('pub.stall')}>
             <select className="input" value={stall} onChange={(e) => setStall(e.target.value)}>
@@ -110,16 +183,60 @@ export function ProducerPublish() {
             </select>
           </Field>
         )}
-        <div className="flex items-end gap-2">
-          <div className="flex-1">
-            <Field label={t('pub.product')}>
-              <select className="input" required value={prod?.id ?? ''} onChange={(e) => setProduct(e.target.value)}>
-                {cat.products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+        <div role="group" aria-labelledby="mode-l" className="space-y-2">
+          <span className="label" id="mode-l">{t('pub.product')}</span>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="chip" aria-pressed={!newMode} disabled={!cat.products.length} onClick={() => setMode('existing')}>{t('pub.modeExisting')}</button>
+            <button type="button" className="chip" aria-pressed={newMode} onClick={() => setMode('new')}>{t('pub.modeNew')}</button>
+          </div>
+        </div>
+        {newMode ? (
+          <div className="space-y-4">
+            <Field label={t('pub.newName')}>
+              <input className="input" required minLength={2} maxLength={80} value={pName} onChange={(e) => setPName(e.target.value)} />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t('pub.newUnit')}>
+                <input className="input" required maxLength={20} value={pUnit} onChange={(e) => setPUnit(e.target.value)} />
+              </Field>
+              <Field label={t('pub.newWeight')}>
+                <input className="input" inputMode="numeric" value={pWeight} onChange={(e) => setPWeight(e.target.value)} />
+              </Field>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t('pub.newVat')}>
+                <select className="input" value={pVat} onChange={(e) => setPVat(e.target.value as VatRate)}>
+                  <option value="4">4 %</option>
+                  <option value="10">10 %</option>
+                  <option value="21">21 %</option>
+                </select>
+              </Field>
+              <Field label={t('pub.newFood')}>
+                <select className="input" value={pFood} onChange={(e) => setPFood(e.target.value as FoodClass)}>
+                  <option value="REFRIGERATED">{t('pub.newRefrigerated')}</option>
+                  <option value="AMBIENT">{t('pub.newAmbient')}</option>
+                </select>
+              </Field>
+            </div>
+            <Field label={t('pub.newUsual')}>
+              <input className="input" inputMode="decimal" value={pUsual} onChange={(e) => setPUsual(e.target.value)} placeholder="2,50" />
+            </Field>
+            <Field label={t('pub.newPhoto')} hint={t('pub.photoHint')}>
+              <input key={fileKey} className="input" type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} />
             </Field>
           </div>
-          <button type="button" className="btn btn-secondary" onClick={repeat}>{t('pub.repeat')}</button>
-        </div>
+        ) : (
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <Field label={t('pub.product')}>
+                <select className="input" required value={selectedId} onChange={(e) => setProduct(e.target.value)}>
+                  {cat.products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </Field>
+            </div>
+            <button type="button" className="btn btn-secondary" onClick={repeat}>{t('pub.repeat')}</button>
+          </div>
+        )}
         <Field label={t('pub.qty')}><input className="input" inputMode="numeric" required value={qty} onChange={(e) => setQty(e.target.value)} /></Field>
         <Field label={t('pub.price')} hint={ref !== null ? t('pub.usual', { p: money(ref, lang) }) : undefined}>
           <input className="input" inputMode="decimal" required value={price} onChange={(e) => setPrice(e.target.value)} placeholder="2,50" />
@@ -143,7 +260,7 @@ export function ProducerPublish() {
             <option value="BEST_BEFORE">{t('offer.bestBefore')}</option>
           </select>
         </Field>
-        <button className="btn btn-primary w-full" disabled={!stall || !prod}>{t('pub.publish')}</button>
+        <button className="btn btn-primary w-full" disabled={busy || !stall || (!newMode && !selectedId)}>{t('pub.publish')}</button>
       </form>
     </Shell>
   )

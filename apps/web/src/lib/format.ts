@@ -12,6 +12,12 @@ export function timeHM(iso: string, lang: string): string {
   return new Intl.DateTimeFormat(locale(lang), { hour: '2-digit', minute: '2-digit', timeZone: TZ }).format(new Date(iso))
 }
 
+/** Distancia legible: "120 m" o "1,4 km" según idioma (redondeo a 10 m). */
+export function distanceLabel(m: number, lang: string): string {
+  if (m < 1000) return `${Math.max(10, Math.round(m / 10) * 10)} m`
+  return `${new Intl.NumberFormat(locale(lang), { maximumFractionDigits: 1 }).format(m / 1000)} km`
+}
+
 export function dateLong(iso: string, lang: string): string {
   return new Intl.DateTimeFormat(locale(lang), { weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ }).format(new Date(iso))
 }

@@ -1,7 +1,9 @@
 import asyncio
 import json
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Cookie, Depends, Request, Response
+from app.db.session import SessionLocal
+from app.identidad.service import session_user
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -53,10 +55,17 @@ def my_points(user: User = Depends(current_user), db: Session = Depends(get_db))
 
 
 @router.get("/stream")
-async def stream(request: Request, user: User = Depends(current_user)):
-    if hub.count(user.id) >= get_settings().SSE_MAX_PER_USER:
+async def stream(request: Request, mc_session: str | None = Cookie(default=None)):
+    # Sesion de BD corta: se cierra antes de empezar el stream (no retener transaccion).
+    with SessionLocal() as db:
+        user = session_user(db, mc_session, get_clock().now())
+        if user is None:
+            raise ApiError("unauthorized")
+        uid = user.id
+        db.rollback()
+    if hub.count(uid) >= get_settings().SSE_MAX_PER_USER:
         raise ApiError("rate_limited", reason="too_many_streams")
-    sub = hub.subscribe(user.id)
+    sub = hub.subscribe(uid)
 
     async def gen():
         try:

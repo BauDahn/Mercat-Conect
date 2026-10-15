@@ -17,14 +17,14 @@ from zoneinfo import ZoneInfo
 TZ = ZoneInfo("Europe/Madrid")
 UTC = timezone.utc
 NS = uuid.UUID("6d657263-6174-2d63-6f6e-656374000000")
-ALLOWANCE = 20
+ALLOWANCE = 100
 HISTORY_DAYS = 28
 DEMO_PASSWORD = "demo1234"
 
 # Columnas exactas de apps/api/app/db/models.py (las que se rellenan; los id autonumericos los pone la BD).
 COLUMNS: dict[str, list[str]] = {
     "markets": ["id", "name", "lat", "lng", "opens_at", "closes_at", "offers_from", "tz"],
-    "stalls": ["id", "market_id", "name", "category", "owner_user_id", "verified_at", "payout_account_ref"],
+    "stalls": ["id", "market_id", "name", "category", "owner_user_id", "verified_at", "payout_account_ref", "lat", "lng"],
     "users": ["id", "email", "password_hash", "display_name", "role", "lang", "reputation", "status",
               "telegram_chat_id", "created_at"],
     "user_identities": ["user_id", "person_hash", "age_verified_at", "age_method", "provider_ref"],
@@ -63,8 +63,9 @@ MARKETS = [  # nombre real, lat, lng, abre, cierra, ofertas desde
     ("Mercado de Ruzafa", 39.4627, -0.3724, time(7, 0), time(15, 0), time(11, 30)),
     ("Mercado de Colón", 39.4672, -0.3523, time(7, 30), time(15, 0), time(11, 30)),
     ("Mercado Central", 39.4739, -0.3787, time(7, 0), time(15, 0), time(11, 30)),
+    ("Benimaclet (barrio)", 39.4893, -0.3585, time(8, 0), time(14, 30), time(11, 30)),  # Plaça de Benimaclet
 ]
-LOCKERS = [(0, "LOCKER-RUZ-01"), (0, "LOCKER-RUZ-02"), (1, "LOCKER-COL-01"), (2, "LOCKER-CEN-01")]
+LOCKERS = [(0, "LOCKER-RUZ-01"), (0, "LOCKER-RUZ-02"), (1, "LOCKER-COL-01"), (2, "LOCKER-CEN-01"), (3, "LOCKER-BEN-01")]
 STALLS = [  # (mercado, nombre ficticio, categoria, mitad del catalogo)
     (0, "Frutería La Huerta de Pepa", "fruta", 0), (0, "Pescados Mar de Ruzafa", "pescado", 0),
     (0, "Forn del Barri", "panaderia", 0), (0, "Carnes Ca Tonet", "carne", 0),
@@ -72,7 +73,22 @@ STALLS = [  # (mercado, nombre ficticio, categoria, mitad del catalogo)
     (1, "Pescadería Las Gaviotas", "pescado", 1), (1, "Horno San Vicente", "panaderia", 1),
     (2, "Fruta Els Tarongers", "fruta", 1), (2, "Carnicería Casa Paco", "carne", 1),
     (2, "Despensa El Cabanyal", "despensa", None), (2, "Lácteos La Alquería", "lacteos", None),
+    # Benimaclet: nombres y calles de directorios de barrio (datos NO verificados); las coordenadas de
+    # BEN_COORDS son APROXIMADAS (+-100 m) y las ofertas, stock y precios son inventados (demo).
+    (3, "Pescadería Pepito", "pescado", None), (3, "Ultramarinos Javi", "despensa", None),
+    (3, "La Nueva Pollería Tere", "carne", 0), (3, "Carnicería El Rincón de José", "carne", 1),
+    (3, "Horno Panadería (Salvador Almenar 2)", "panaderia", 0),
+    (3, "Frutas y Verduras Francisco Catalá", "fruta", None), (3, "Panadería Ignacio", "panaderia", 1),
+    (3, "Vegeta", "verdura", None),
 ]
+BEN_COORDS = {  # aproximadas (+-100 m), cerca de cada calle
+    "Pescadería Pepito": (39.4895, -0.3589), "Ultramarinos Javi": (39.4897, -0.3592),
+    "La Nueva Pollería Tere": (39.4896, -0.3590), "Carnicería El Rincón de José": (39.4879, -0.3571),
+    "Horno Panadería (Salvador Almenar 2)": (39.4879, -0.3572),
+    "Frutas y Verduras Francisco Catalá": (39.4908, -0.3568), "Panadería Ignacio": (39.4885, -0.3600),
+    "Vegeta": (39.4889, -0.3578),
+}
+PEPA_STALLS = ("Frutería La Huerta de Pepa", "Frutas y Verduras Francisco Catalá")
 R, A = "REFRIGERATED", "AMBIENT"
 CATALOG = {  # nombre, unidad, peso unitario (g), IVA %, alergenos, clase de frio, precio habitual (cent)
     "fruta": [("Tomates de la huerta", "bolsa 1 kg", 1000, 4, [], A, 280), ("Naranjas de Valencia", "bolsa 2 kg", 2000, 4, [], A, 320),
@@ -133,17 +149,17 @@ def policy_for(profile: str) -> dict:
     fiables = {"id": "primera-hora-solo-fiables", "when": {"time_between": ["12:30", "13:00"]},
                "then": {"min_reputation": 0.6}}
     if profile == "LIBRE":
-        return {"version": 1, "base": {"points_per_unit": 1, "max_units_per_user": 6},
+        return {"version": 1, "base": {"points_per_unit": 1, "points_per_euro": 3, "max_units_per_user": 6},
                 "rules": [{"id": "agotamiento-rapido", "when": {"demand_velocity_gte": 0.8},
                            "then": {"points_per_unit_mult": 2.0}}],
-                "bounds": {"points_per_unit": [0, 6], "max_units_per_user": [1, 10]}}
+                "bounds": {"points_per_unit": [0, 30], "max_units_per_user": [1, 10]}}
     if profile == "ESTRICTO":
-        return {"version": 1, "base": {"points_per_unit": 3, "max_units_per_user": 2},
+        return {"version": 1, "base": {"points_per_unit": 3, "points_per_euro": 8, "max_units_per_user": 2},
                 "rules": [fiables, cierre],
-                "bounds": {"points_per_unit": [1, 6], "max_units_per_user": [1, 4]}}
-    return {"version": 1, "base": {"points_per_unit": 2, "max_units_per_user": 3},
+                "bounds": {"points_per_unit": [1, 30], "max_units_per_user": [1, 4]}}
+    return {"version": 1, "base": {"points_per_unit": 2, "points_per_euro": 5, "max_units_per_user": 3},
             "rules": [pico, cierre, fiables],
-            "bounds": {"points_per_unit": [0, 6], "max_units_per_user": [1, 10]}}
+            "bounds": {"points_per_unit": [0, 30], "max_units_per_user": [1, 10]}}
 
 
 class Dataset:
@@ -232,11 +248,12 @@ class Builder:
         self.stalls, self.products = [], {}
         for i, (mi, name, cat, half) in enumerate(STALLS):
             sid = self.uid("stall")
-            owner = self.users["pepa"]["id"] if i == 0 else None
+            owner = self.users["pepa"]["id"] if name in PEPA_STALLS else None
+            slat, slng = BEN_COORDS.get(name, (None, None))
             st = {"id": sid, "market": mi, "name": name, "category": cat, "products": []}
             self.stalls.append(st)
             self.add("stalls", id=sid, market_id=self.markets[mi]["id"], name=name, category=cat, owner_user_id=owner,
-                     verified_at=base, payout_account_ref=f"acct_demo_{i + 1:02d}")
+                     verified_at=base, payout_account_ref=f"acct_demo_{i + 1:02d}", lat=slat, lng=slng)
             pool_p = CATALOG[cat] if half is None else CATALOG[cat][half::2]
             for (pn, unit, wg, vat, al, fc, price) in pool_p:
                 pid = self.uid("product")
@@ -304,6 +321,8 @@ class Builder:
                "puntil": until or self.at(d, *rng.choice([(13, 30), (14, 0), (14, 30)])), "status": "ACTIVE",
                "consume_by": "TODAY" if product["food_class"] == R else rng.choice(["TODAY", "BEST_BEFORE"]),
                "profile": profile, "policy": policy_for(profile), "att": [], "n_orders": 0, "last_order": None}
+        b = off["policy"]["base"]  # coste base = max(1, round(ahorro_eur x K)), igual que el motor
+        b["points_per_unit"] = max(1, math.floor(max(0, off["ref"] - price) / 100 * b["points_per_euro"] + 0.5))
         self.offers.append(off)
         return off
 
@@ -654,6 +673,7 @@ class Builder:
             offers = self.sim_day(d, False)
             self.close_day(offers)
         scen = ["fresh"] * 6 + ["some"] * 9 + ["almost"] * 5 + ["sold"] * 2 + ["closing"] * 2
+        scen += ["fresh"] * 4 + ["some"] * 6 + ["almost"] * 4 + ["sold"] + ["closing"]  # puestos de Benimaclet
         rng.shuffle(scen)
         today_offers = self.sim_day(self.today, True, scen)
         for off in today_offers:

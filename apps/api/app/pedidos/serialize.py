@@ -10,7 +10,7 @@ from app.taquillas.codes import pickup_code
 def stall_out(s: Stall, market: Market) -> dict:
     return {"id": str(s.id), "market_id": str(s.market_id), "market_name": market.name,
             "market_lat": market.lat, "market_lng": market.lng,
-            "name": s.name, "category": s.category}
+            "lat": s.lat, "lng": s.lng, "name": s.name, "category": s.category}
 
 
 def serialize_orders(db: Session, orders: list[Order], viewer_id: uuid.UUID | None) -> list[dict]:

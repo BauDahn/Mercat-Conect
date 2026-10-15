@@ -11,6 +11,7 @@ app/seguridad.py
 app/sqlutil.py
 app/admin/__init__.py
 app/admin/router.py
+app/almacen/__init__.py
 app/catalogo/__init__.py
 app/catalogo/producer_router.py
 app/catalogo/router.py

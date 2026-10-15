@@ -3,7 +3,7 @@ from hypothesis import given, strategies as st
 from app.reglas.engine import Signals, UserFacts, evaluate
 from app.reglas.profiles import PROFILES
 
-OK = UserFacts("ACTIVE", True, 1.0, 20)
+OK = UserFacts("ACTIVE", True, 1.0, 100)
 
 
 def sig(**kw):
@@ -13,7 +13,7 @@ def sig(**kw):
     return Signals(**base)
 
 
-P = PROFILES["EQUILIBRADO"]
+P = {**PROFILES["EQUILIBRADO"], "base": {k: v for k, v in PROFILES["EQUILIBRADO"]["base"].items() if k != "points_per_euro"}}  # coste fijo
 
 
 def test_base():
@@ -34,11 +34,11 @@ def test_cierre_con_sobrante_baja_coste():
 
 
 def test_denegaciones():
-    assert evaluate(UserFacts("PENDING", False, 1, 20), 1, sig(), P).denial == "account_not_verified"
+    assert evaluate(UserFacts("PENDING", False, 1, 100), 1, sig(), P).denial == "account_not_verified"
     assert evaluate(UserFacts("ACTIVE", True, 1, 1), 1, sig(), P).denial == "no_points"
     pol = {"base": {"points_per_unit": 1, "max_units_per_user": 3, "min_reputation": 0.6}}
-    assert evaluate(UserFacts("ACTIVE", True, 0.5, 20), 1, sig(), pol).denial == "insufficient_reputation"
-    assert evaluate(UserFacts("ACTIVE", True, 1, 20, units_already=3), 1, sig(), P).denial == "exceeds_max"
+    assert evaluate(UserFacts("ACTIVE", True, 0.5, 100), 1, sig(), pol).denial == "insufficient_reputation"
+    assert evaluate(UserFacts("ACTIVE", True, 1, 100, units_already=3), 1, sig(), P).denial == "exceeds_max"
 
 
 def test_barandillas_siempre_ganan():
@@ -53,7 +53,7 @@ def test_time_between_y_ultima_regla_gana():
         {"id": "a", "when": {"time_between": ["12:30", "13:00"]}, "then": {"min_reputation": 0.9}},
         {"id": "b", "when": {"stock_ratio_gte": 0.1}, "then": {"max_units_per_user": 5}},
         {"id": "c", "when": {"stock_ratio_gte": 0.1}, "then": {"max_units_per_user": 1}}]}
-    d = evaluate(UserFacts("ACTIVE", True, 0.8, 20), 1, sig(local_minutes=12 * 60 + 40), pol)
+    d = evaluate(UserFacts("ACTIVE", True, 0.8, 100), 1, sig(local_minutes=12 * 60 + 40), pol)
     assert d.denial == "insufficient_reputation" and d.params["max"] == 1
 
 
@@ -63,3 +63,17 @@ def test_nunca_gasta_mas_que_el_saldo(qty, pts, vel, rep):
     if d.allowed:
         assert d.points_cost <= pts
     assert d.max_units >= 0
+
+
+def test_mas_descuento_mas_puntos():
+    pol = {"base": {"points_per_unit": 1, "points_per_euro": 5, "max_units_per_user": 3}}
+    costs = [evaluate(OK, 1, sig(saving_cents=s), pol).points_cost for s in (0, 100, 200, 400)]
+    assert costs == [1, 5, 10, 20]
+    assert costs == sorted(costs)
+
+
+def test_asignacion_semanal_100():
+    from app.reglas.engine import DEFAULT_GUARDRAILS
+    from app.config import get_settings
+    assert DEFAULT_GUARDRAILS["weekly_allowance"] == 100 == get_settings().DEFAULT_ALLOWANCE
+    assert DEFAULT_GUARDRAILS["max_points_per_unit"] == 30

@@ -31,7 +31,7 @@ export function Dashboard() {
   const { nowMs } = useServerTime()
   const [market, setMarket] = useState('')
   const [category, setCategory] = useState('')
-  const [sort, setSort] = useState<Sort>('closing_soon')
+  const [sort, setSort] = useState<Sort>('distance')
   const [qText, setQText] = useState('')
   const [allergen, setAllergen] = useState('')
   const [nowOnly, setNowOnly] = useState(false)
@@ -107,6 +107,12 @@ export function Dashboard() {
     [visible, now],
   )
 
+  const near500 = useMemo(
+    () => visible.filter((o) => o.distance_m != null && o.distance_m < 500 && o.qty_available > 0).slice(0, 8),
+    [visible],
+  )
+
+  const filtered = !!(category || allergen || nowOnly || maxPrice || q || market)
   const anon = !user
   const pointsLeft = points?.left ?? 0
   const allowance = points?.allowance ?? 0
@@ -211,6 +217,15 @@ export function Dashboard() {
         </section>
       )}
 
+      {near500.length > 0 && (
+        <section aria-labelledby="within500-h" className="space-y-3">
+          <h2 id="within500-h" className="text-2xl font-extrabold">{t('dash.within500')}</h2>
+          <div className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-3 lg:mx-0 lg:px-0">
+            {near500.map((o) => <OfferCard key={o.id} o={o} d={decisions[o.id]} compact />)}
+          </div>
+        </section>
+      )}
+
       {closing.length > 0 && (
         <section aria-labelledby="closing-h" className="space-y-3">
           <div className="flex items-end justify-between gap-3">
@@ -226,7 +241,7 @@ export function Dashboard() {
       <section aria-labelledby="near-h" className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 id="near-h" className="text-2xl font-extrabold">{t('dash.nearYou')}</h2>
+            <h2 id="near-h" className="text-2xl font-extrabold">{t('dash.nearHeader')}</h2>
             {!res.loading && <p className="text-sm font-semibold text-muted">{t('ui.offersCount', { n: visible.length, count: visible.length })}</p>}
           </div>
           <label className="flex items-center gap-2 text-sm font-bold">
@@ -237,8 +252,8 @@ export function Dashboard() {
           </label>
         </div>
         {!res.loading && !visible.length && !res.error && (
-          <EmptyState icon="basket" title={t('ui.emptyTitle')} action={category || q || market ? <Button variant="secondary" onClick={() => { setCategory(''); setQText(''); setMarket('') }}>{t('ui.clearFilters')}</Button> : undefined}>
-            {t('ui.emptySub')}
+          <EmptyState icon="basket" title={t(filtered ? 'ui.emptyTitle' : 'ui.emptyNone')} action={category || q || market ? <Button variant="secondary" onClick={() => { setCategory(''); setQText(''); setMarket('') }}>{t('ui.clearFilters')}</Button> : undefined}>
+            {t(filtered ? 'ui.emptySub' : 'ui.emptyNoneSub')}
           </EmptyState>
         )}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

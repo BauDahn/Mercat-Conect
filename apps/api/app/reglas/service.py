@@ -54,6 +54,11 @@ def demand_attempts(db: Session, offer_id: uuid.UUID, now: datetime) -> int:
         {"o": str(offer_id), "since": now - timedelta(minutes=10), "now": now}).scalar() or 0
 
 
+def saving_cents(offer: Offer, product: Product) -> int:
+    usual = offer.reference_price_cents or product.usual_price_cents or 0
+    return max(0, usual - offer.price_cents)
+
+
 def compute_signals(db: Session, offer: Offer, product: Product, market: Market, now: datetime) -> engine.Signals:
     loc = local(now)
     minutes = loc.hour * 60 + loc.minute
@@ -66,7 +71,8 @@ def compute_signals(db: Session, offer: Offer, product: Product, market: Market,
         stock_ratio=offer.qty_available / offer.qty_total,
         demand_velocity=attempts / max(offer.qty_available, 1),
         minutes_to_close=max(0.0, to_close), time_band=time_band(minutes),
-        locker_free_slots=locker_free_slots(db, market.id, product.food_class), local_minutes=minutes)
+        locker_free_slots=locker_free_slots(db, market.id, product.food_class), local_minutes=minutes,
+        saving_cents=saving_cents(offer, product))
 
 
 def user_facts(db: Session, user, verified: bool, offer_id: uuid.UUID, now: datetime) -> engine.UserFacts:
