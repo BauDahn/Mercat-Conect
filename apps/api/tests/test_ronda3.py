@@ -278,3 +278,100 @@ def test_listado_de_ofertas_del_productor(client, db, world):
     world.make_user("marta")
     assert login(new_client(), "marta@demo.test").get("/producer/offers").status_code == 403
     assert client.get("/producer/offers").status_code == 401
+
+
+PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
+JPG = b"\xff\xd8\xff\xe0" + b"\x00" * 64
+WEBP = b"RIFF\x00\x00\x00\x00WEBP" + b"\x00" * 32
+
+
+def test_producto_nuevo_foto_y_categoria(client, db, world, tmp_path, monkeypatch):
+    from app.config import get_settings
+    monkeypatch.setenv("UPLOAD_DIR", str(tmp_path / "up"))
+    get_settings.cache_clear()
+    p = login(new_client(), "pepa@demo.test")
+    prod = {"stall_id": str(world.stall.id), "name": "Fresas", "unit": "bandeja", "unit_weight_g": 500,
+            "vat_rate": 4, "allergens": [], "food_class": "REFRIGERATED", "usual_price_cents": 350}
+    r = p.post("/producer/products", json=prod)
+    assert r.status_code == 201 and r.json()["category"] == "fruta" and r.json()["photo_url"] is None
+    pid = r.json()["id"]
+    assert p.post("/producer/products", json={**prod, "name": "x"}).status_code == 422
+    assert p.post("/producer/products", json={**prod, "vat_rate": 7}).status_code == 422
+    assert p.post("/producer/products", json={**prod, "stall_id": str(uuid.uuid4())}).status_code == 403
+    world.make_user("marta")
+    assert login(new_client(), "marta@demo.test").post("/producer/products", json=prod).status_code == 403
+    assert "Fresas" in [x["name"] for x in p.get("/products", params={"stall_id": str(world.stall.id)}).json()["items"]]
+    # foto: valida cabecera real, tamaño y propiedad
+    f = lambda data, name="a.png", ct="image/png": {"file": (name, data, ct)}  # noqa: E731
+    assert p.post(f"/producer/products/{pid}/photo", files=f(b"GIF89a" + b"0" * 50, "a.png")).status_code == 422
+    assert p.post(f"/producer/products/{pid}/photo", files=f(b"<html>", "a.jpg", "image/jpeg")).status_code == 422
+    assert p.post(f"/producer/products/{pid}/photo", files=f(PNG + b"0" * (2 * 1024 * 1024))).status_code == 422
+    other = login(new_client(), "gestion@demo.test")
+    assert other.post(f"/producer/products/{pid}/photo", files=f(PNG)).status_code == 403
+    for data, ext, ctype in ((PNG, "png", "image/png"), (JPG, "jpg", "image/jpeg"), (WEBP, "webp", "image/webp")):
+        r = p.post(f"/producer/products/{pid}/photo", files=f(data, "../../evil.php", "text/plain"))
+        assert r.status_code == 200, r.text
+        url = r.json()["photo_url"]
+        assert url.startswith("/uploads/") and url.endswith(f".{ext}") and "evil" not in url
+        g = client.get(url)
+        assert g.status_code == 200 and g.content == data and g.headers["content-type"] == ctype
+        assert g.headers["x-content-type-options"] == "nosniff" and "max-age" in g.headers["cache-control"]
+    assert len(list((tmp_path / "up").iterdir())) == 1               # las anteriores se borran al reemplazar
+    assert client.get("/uploads/..%2f..%2fetc%2fpasswd").status_code == 404
+    assert client.get("/uploads/" + "0" * 32 + ".png").status_code == 404
+    # aparece en ofertas y detalle, con categoría
+    r = p.post("/producer/offers", json={**BODY(world), "product_id": pid})
+    oid = r.json()["id"]
+    assert r.json()["product"]["photo_url"] == url
+    lst = client.get("/offers").json()["items"][0]["product"]
+    assert lst["photo_url"] == url and lst["category"] == "fruta"
+    assert client.get(f"/offers/{oid}").json()["product"]["photo_url"] == url
+
+
+def test_publicar_llega_por_sse_y_aviso_a_suscritos(client, db, world):
+    import asyncio
+    from app.db.models import Subscription
+    from app.notificaciones.router import stream
+    m = world.make_user("marta")
+    luis = world.make_user("luis")
+    ana = world.make_user("ana")
+    db.add_all([Subscription(user_id=m.id, market_id=world.market.id, categories=["fruta"]),
+                Subscription(user_id=luis.id, market_id=world.market.id, categories=[]),
+                Subscription(user_id=ana.id, market_id=world.market.id, categories=["pescado"])])
+    db.commit()
+    p = login(new_client(), "pepa@demo.test")
+
+    class Req:
+        async def is_disconnected(self):
+            return False
+
+    async def go():
+        resp = await stream(Req(), m)
+        it = resp.body_iterator
+        assert "connected" in await anext(it)
+        loop = asyncio.get_running_loop()
+        r = await loop.run_in_executor(None, lambda: p.post("/producer/offers", json=BODY(world)))
+        assert r.status_code == 201
+        chunk = await asyncio.wait_for(anext(it), 3)
+        await it.aclose()
+        return chunk, r.json()["id"]
+
+    chunk, oid = asyncio.run(go())
+    assert chunk.startswith("event: offer.updated") and oid in chunk and '"status": "ACTIVE"' in chunk
+    kinds = lambda u: [n["kind"] for n in login(new_client(), f"{u}@demo.test").get("/notifications").json()["items"]]  # noqa: E731
+    assert kinds("marta") == ["OFFER_MATCH"] and kinds("luis") == ["OFFER_MATCH"]
+    assert kinds("ana") == []                                        # otra categoría
+
+
+def test_coordenadas_del_mercado_en_stall(client, db, world):
+    from sqlalchemy import text
+    db.execute(text("update markets set lat=39.4585, lng=-0.3745"))
+    db.commit()
+    p = login(new_client(), "pepa@demo.test")
+    oid = p.post("/producer/offers", json=BODY(world)).json()["id"]
+    for st in (client.get("/offers").json()["items"][0]["stall"], client.get(f"/offers/{oid}").json()["stall"],
+               p.get("/producer/offers").json()["items"][0]["stall"], p.get("/producer/stalls").json()["items"][0]):
+        assert st["market_lat"] == 39.4585 and st["market_lng"] == -0.3745
+    db.execute(text("update markets set lat=null, lng=null"))
+    db.commit()
+    assert client.get("/offers").json()["items"][0]["stall"]["market_lat"] is None

@@ -171,6 +171,72 @@ paths:
                     items: {$ref: '#/components/schemas/Product'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+  /producer/products:
+    post:
+      tags: [producer]
+      operationId: producerCreateProduct
+      summary: Crea un producto nuevo en un puesto del propio productor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ProductInput'}
+      responses:
+        '201':
+          description: Producto creado (`category` = categoría del puesto)
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Product'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /producer/products/{id}/photo:
+    post:
+      tags: [producer]
+      operationId: producerUploadProductPhoto
+      summary: Sube la foto del producto (jpeg, png o webp; máx. 2 MB)
+      description: Se valida la cabecera real del archivo (no el nombre ni el Content-Type) y se guarda con nombre aleatorio.
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: {type: string, format: binary}
+      responses:
+        '200':
+          description: Foto guardada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [photo_url]
+                properties:
+                  photo_url: {type: string, examples: ['/uploads/0123456789abcdef0123456789abcdef.jpg']}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /uploads/{file}:
+    get:
+      tags: [producer]
+      security: []
+      operationId: getUpload
+      summary: Archivo subido (X-Content-Type-Options nosniff, caché larga)
+      parameters:
+        - {name: file, in: path, required: true, schema: {type: string, pattern: '^[0-9a-f]{32}\.(jpg|png|webp)$'}}
+      responses:
+        '200':
+          description: Imagen
+          content:
+            image/jpeg: {schema: {type: string, format: binary}}
+            image/png: {schema: {type: string, format: binary}}
+            image/webp: {schema: {type: string, format: binary}}
+        '404': {$ref: '#/components/responses/NotFound'}
   /producer/stalls:
     get:
       tags: [producer]
@@ -952,6 +1018,8 @@ components:
         id: {type: string, format: uuid}
         market_id: {type: string, format: uuid}
         market_name: {type: string}
+        market_lat: {type: [number, 'null'], description: Latitud del mercado (el cliente calcula distancias)}
+        market_lng: {type: [number, 'null'], description: Longitud del mercado}
         name: {type: string}
         category: {type: string}
     StallInput:
@@ -974,7 +1042,20 @@ components:
         allergens: {type: array, items: {type: string}}
         food_class: {type: string, enum: [REFRIGERATED, AMBIENT]}
         usual_price_cents: {type: [integer, 'null']}
-        photo_url: {type: [string, 'null']}
+        photo_url: {type: [string, 'null'], description: "Ruta servida por GET /uploads/{file} (o imagen incluida en el repo)"}
+        category: {type: string, description: "Categoría del puesto (color/emoji de la tarjeta)"}
+    ProductInput:
+      type: object
+      required: [stall_id, name, unit, vat_rate, food_class]
+      properties:
+        stall_id: {type: string, format: uuid}
+        name: {type: string, minLength: 2, maxLength: 80}
+        unit: {type: string, minLength: 1, maxLength: 20, examples: [kg, ud, bandeja]}
+        unit_weight_g: {type: [integer, 'null'], minimum: 1}
+        vat_rate: {type: number, enum: [4, 10, 21]}
+        allergens: {type: array, maxItems: 20, items: {type: string, maxLength: 40}, default: []}
+        food_class: {type: string, enum: [REFRIGERATED, AMBIENT]}
+        usual_price_cents: {type: [integer, 'null'], minimum: 0}
     OfferStatus:
       type: string
       enum: [DRAFT, ACTIVE, SOLD_OUT, EXPIRED, WITHDRAWN, DONATED, DISCARDED]

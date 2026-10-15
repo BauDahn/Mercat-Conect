@@ -21,7 +21,16 @@
   "login": "Entrar",
   "producer": "Puesto",
   "admin": "Gestión",
-  "demo": "Demo"
+  "demo": "Demo",
+  "panel": "Panel",
+  "publish": "Publicar",
+  "myOffers": "Mis ofertas",
+  "payouts": "Cobros",
+  "impact": "Impacto",
+  "stalls": "Puestos",
+  "donations": "Donaciones",
+  "quality": "Calidad",
+  "guardrails": "Barandillas"
  },
  "lang": {
   "switch": "Cambiar a valenciano"
@@ -41,7 +50,8 @@
   "leftOf": "{left} de {total} puntos",
   "spent": "Has gastado {n} puntos esta semana.",
   "renews": "Se renuevan el {date}.",
-  "explain": "Los puntos reparten el producto entre más vecinos. El coste de cada oferta depende de la demanda y de la hora."
+  "explain": "Los puntos reparten el producto entre más vecinos. El coste de cada oferta depende de la demanda y de la hora.",
+  "label": "Saldo de puntos"
  },
  "dash": {
   "market": "Mercado",
@@ -65,7 +75,8 @@
    "newest": "Más recientes",
    "distance": "Más cerca de mí"
   },
-  "empty": "Ahora mismo no hay ofertas con estos filtros."
+  "empty": "Ahora mismo no hay ofertas con estos filtros.",
+  "filters": "Buscar y filtrar"
  },
  "offer": {
   "closesIn": "Cierra en {n} min",
@@ -108,7 +119,8 @@
   "reservePay": "Reservar y pagar",
   "total": "Total: {price} · {pts} puntos",
   "serverRecalc": "El servidor recalcula siempre el precio, los puntos y las reglas al reservar.",
-  "costFor": "Coste: {n} puntos por {q} {unit}"
+  "costFor": "Coste: {n} puntos por {q} {unit}",
+  "seeWhy": "Ver por qué"
  },
  "reasons": {},
  "rules": {},
@@ -341,7 +353,9 @@
   "resetDone": "Datos reiniciados.",
   "pause": "Pausar reloj",
   "resume": "Reanudar reloj",
-  "paused": "Reloj en pausa"
+  "paused": "Reloj en pausa",
+  "tools": "Herramientas de demo",
+  "lockers": "Taquillas virtuales"
  },
  "lock": {
   "title": "Taquillas virtuales",
@@ -396,5 +410,48 @@
   "payment_failed": "El pago ha fallado. Puedes reintentarlo.",
   "invalid_signature": "Firma no válida.",
   "demo_only": "Solo disponible en la demo."
+ },
+ "ui": {
+  "today": "Hoy",
+  "hi": "Hola, {name}",
+  "heroSubUser": "Lo que sobra hoy en los mercados, a precio rescatado.",
+  "balance": "Tu saldo de puntos",
+  "pointsRenew": "se renuevan el {day}",
+  "verifyTitle": "Verifica tu edad para reservar",
+  "verifySub": "Tarda un minuto. Mientras tanto puedes ver todas las ofertas.",
+  "verifyCta": "Verificar edad",
+  "swipeHint": "Desliza para ver más",
+  "offersCount": "{n} ofertas",
+  "offersCount_one": "{n} oferta",
+  "emptyTitle": "No hay ofertas con estos filtros",
+  "emptySub": "Prueba otra categoría o quita algún filtro. Los puestos publican cada día.",
+  "clearFilters": "Quitar filtros",
+  "heroKicker": "Contra el desperdicio en los mercados de València",
+  "heroTitle": "Lo que sobra hoy en el mercado, a precio rescatado",
+  "heroSub": "Los puestos publican el producto fresco que no venderán. Tú lo reservas con tus puntos semanales y lo recoges en una taquilla refrigerada.",
+  "signup": "Crear cuenta",
+  "enter": "Entrar",
+  "chooseCustomer": "Soy cliente o consumidor",
+  "chooseCustomerSub": "Reserva ofertas y recógelas en la taquilla.",
+  "chooseBusiness": "Soy productor o gestión",
+  "chooseBusinessSub": "Publica el excedente del día o mira el impacto del mercado.",
+  "producerKicker": "Panel del puesto",
+  "producerTitle": "Hola, aquí tienes tu día",
+  "producerSub": "Publica lo que sobra, prepara los pedidos y revisa tus ofertas.",
+  "publishBig": "Publicar oferta",
+  "kpis": "Resumen",
+  "kpiActive": "Ofertas activas",
+  "kpiToPrepare": "Por preparar",
+  "kpiDrafts": "Borradores",
+  "toPrepare": "Pedidos por preparar",
+  "seeAll": "Ver todo",
+  "noToPrepare": "Nada por preparar",
+  "noToPrepareSub": "Cuando un vecino reserve, el pedido aparecerá aquí.",
+  "prepare": "Preparar",
+  "yourOffers": "Tus ofertas",
+  "noOffersYet": "Aún no has publicado nada",
+  "noOffersYetSub": "Publicar tarda menos de 30 segundos.",
+  "unitsLeft": "Quedan {n}",
+  "credits": "Fotos de ejemplo: Wikimedia Commons (CC0, dominio público, CC BY y CC BY-SA)."
  }
 }

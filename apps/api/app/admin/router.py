@@ -50,7 +50,7 @@ def create_stall(body: StallInput, user: User = Depends(mgr), db: Session = Depe
               owner_user_id=body.owner_user_id, verified_at=get_clock().now())
     db.add(s)
     db.commit()
-    return stall_out(s, market.name)
+    return stall_out(s, market)
 
 
 def _one(db, sql, **p):

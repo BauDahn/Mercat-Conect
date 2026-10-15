@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     TEMP_ALARM_MINUTES: int = 15
     DAILY_NOTIFICATION_CAP: int = 5   # sección 14.2
     FAKE_PAYMENT_DELAY_SECONDS: int = 30
+    UPLOAD_DIR: str = ""              # vacío = <raíz del repo>/.demo/uploads
+    MAX_UPLOAD_BYTES: int = 2 * 1024 * 1024
     BIND_HOST: str = ""               # solo Docker; vacío = 127.0.0.1 en demo
     SSE_MAX_PER_USER: int = 5
     PRODUCER_PENALTY: float = 0.05

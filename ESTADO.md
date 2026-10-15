@@ -1,7 +1,7 @@
 # ESTADO · Mercat-Conect
 
 > Para el próximo Claude (y para el equipo). **Léelo después de `CLAUDE.md`.**
-> Última actualización: 15 de octubre de 2026. Versión de `ARQUITECTURA.md`: 0.3.
+> Última actualización: 15 de octubre de 2026, **cierre de sesión por límite de tokens (~95 % consumido)**. Versión de `ARQUITECTURA.md`: 0.3.
 > Marcas: ✅ hecho y verificado · 🟡 hecho pero sin verificar del todo · 🔧 en curso al escribir esto · ❌ pendiente.
 > Si cambias algo relevante, **actualiza este archivo** antes de terminar.
 
@@ -9,7 +9,7 @@
 
 Hackathon: plataforma pública donde los puestos de los mercados de València publican el excedente del día con precio libre; vecinos **mayores de 18** compran desde una **app web (PWA)** gastando **puntos semanales** y recogen en **taquillas refrigeradas**. Las reglas (coste en puntos, máximo por persona) se ajustan solas según demanda y hora. Telegram es solo una idea futura para avisos. Todo lo externo (edad, pago, taquillas, avisos, reloj) está **simulado detrás de interfaces**; la demo corre en localhost con datos inventados.
 
-El repo se construyó con un equipo de agentes siguiendo `ARQUITECTURA.md`. **No hay nada commiteado** salvo el commit inicial: todo el trabajo está sin commitear (el usuario decide cuándo).
+El repo se construyó con un equipo de agentes siguiendo `ARQUITECTURA.md`. **Último commit subido: `bc823ba`** (rama `main`, repo público `BauDahn/Mercat-Conect`), que es el estado *anterior* al rediseño del frontend. Lo que se hizo después (sección 3, filas 🔧) puede estar **sin commitear**: haz `git status` y `git diff --stat` al empezar. Commit y push solo cuando el usuario lo pida.
 
 ## 2. Cómo arrancarlo (comprobado el 15-oct)
 
@@ -35,6 +35,8 @@ make demo-local        # Postgres embebido (pgserver) + migra + siembra + API :8
 | Datos `data/` | ✅ | Seed determinista (hash idéntico), 4 semanas de historial, capas SQL, calidad OK, claves de eventos alineadas con el backend |
 | Arranque (Makefile, compose, CI) | ✅/🟡 | `make demo-local` ✅ (reiniciado con el código final); **Docker Compose sin ejecutar** (no hay Docker aquí) |
 | Pruebas e2e (`e2e/`, Playwright) | 🟡 | Escritas (`e2e/tests/guion.spec.ts`) pero **nunca ejecutadas con éxito**: el agente QA fue detenido por el usuario antes de terminar |
+| Rediseño visual del frontend por rol | 🟡 | Hecho por el agente haiku (lint, tsc y build en verde; capturas propias de anónimo, marta, nuevo, pepa y gestion en móvil y escritorio). Incluye sistema de diseño, tarjeta estilo TGTG, navegación por rol, `/` redirige por rol, panel `/productor` y botón flotante de herramientas de demo. **No revisado por mí con capturas.** Pendiente: gráficos SVG en Admin, páginas internas de productor y gestión, `OfferPage` sin captura. **Las fotos ver sección 6**
+| Subir producto nuevo + foto (productor) | ✅ backend / ❌ frontend | **Backend hecho y probado (48 pruebas)**: `POST /producer/products`, `POST /producer/products/{id}/photo` (≤2 MB, valida cabecera real, tras `FileStore`), `GET /uploads/{file}`; `photo_url` y `category` salen en `/offers` y `/products`; `offer.updated` por SSE en <3 s y `OFFER_MATCH` solo a suscritos (probado). Nueva dependencia `python-multipart`. **Falta conectar el formulario del frontend** (sección 6)
 | Configuración multiagente (`.claude/`) | ✅ | 6 agentes `arq-*`, `settings.json`, `NOTICE` |
 | Telegram | ❌ | Fuera del alcance del hackathon; queda como `Notifier` futuro (sección 14.4) |
 | Mapa en el dashboard, Web Push real, Metabase | ❌ | "Podría" de §2.1 |
@@ -77,6 +79,15 @@ Si se vuelve a lanzar `arq-reviewer`, pídele solo lo **nuevo** desde esta fecha
 
 ## 6. Pendiente (por prioridad)
 
+**⚠ Fotos de productos (licencias) — resolver antes de subir esos archivos al repo público:** el agente descargó 40 fotos de Wikimedia Commons a `apps/web/public/productos/` (2,4 MB, mapeadas en `src/lib/photos.ts`). Según su propio registro: 14 CC BY-SA 4.0, 12 CC BY-SA 3.0, 4 CC BY-SA 2.0, 3 CC BY, 7 CC0. **Solo se guarda la licencia, no el autor ni la URL de origen**, y CC BY/BY-SA exigen atribución al autor con enlace. **Las licencias las declaró el agente y no están verificadas.** Opciones: (a) añadir autor+URL+licencia por foto y verificarlas contra Commons, (b) quedarse solo con las CC0 y usar el emoji de categoría para el resto, (c) usar ilustraciones propias. Hasta decidirlo, **no commitear `public/productos/`**. Los productos nuevos que suba un productor usan su propia foto (`photo_url`) o el emoji.
+
+**Prioridad inmediata: que la demo permita subir un producto como productor y verlo aparecer como vecino.**
+- ✅ Verificado por API: Pepa publica una oferta con una plantilla existente y Marta la ve al momento (24 → 25 ofertas) con su `decision` de puntos.
+- ✅ Backend ya permite crear producto nuevo y subir foto (ver sección 3). Contrato actualizado: ejecutar `npm run gen:api` en `apps/web`.
+- ❌ Falta conectar el formulario `/productor/publicar` a esa creación (con foto opcional) y que la tarjeta use la foto o, si no hay, el emoji de su categoría.
+- ❌ Falta una **prueba real en navegador** (Playwright, `waitUntil:'load'`): Pepa sube un producto → Marta lo ve aparecer en `/` sin recargar. Escribirla en `e2e/tests/`.
+- Las vistas por rol (productor → `/productor`, gestión → `/admin`) las rehace el agente de rediseño; comprobar que `/` redirige según el rol.
+
 1. **Recorrer el guion de la sección 17.6 (12 escenas) en un navegador** y comprobar el aspecto contra los wireframes de §6.2/6.3. Ya se vieron el dashboard y el detalle de oferta (capturas headless OK); faltan compra, productor, taquilla virtual, demo y gestión. Atención al solape de la barra inferior con el botón de reservar en móvil.
 2. **Pruebas e2e** (`make e2e`, escenas 1, 4, 5, 6, 7 y 9): están escritas pero nunca se ejecutaron con éxito. Necesitan la demo en marcha. En esta máquina `cd e2e && npm ci && npx playwright install chromium` **funciona** (descarga un build de ubuntu24.04). Con sesión iniciada la página mantiene el SSE abierto: usa `waitUntil: 'load'`, no `'networkidle'`. El agente QA fue detenido a medias; su único hallazgo (`/demo/reset` daba 500) **no se reproduce** con el código final (devuelve 204): era un servidor desactualizado.
 3. **Docker Compose**: nunca ejecutado. Versiones de imagen (`postgres:16.4`, `mailpit v1.20.2`, `metabase v0.50.30`) y de `uv`, Python y Node en los Dockerfiles **sin verificar**. Probar `make demo` en una máquina con Docker. Con Docker, el Python del contenedor debe ser 3.12 (igual que `.python-version`).
@@ -88,7 +99,15 @@ Si se vuelve a lanzar `arq-reviewer`, pídele solo lo **nuevo** desde esta fecha
 9. **Renderizar los diagramas Mermaid** de `ARQUITECTURA.md` en GitHub y corregir si alguno falla.
 10. **Limpieza de Postgres de prueba antiguos** (de antes del *teardown*): `pkill -f 'postgres -D /tmp/mc_pg_'`. No toca el de la demo (`.demo/pgdata`).
 
-## 7. Cómo seguir con agentes
+## 7. Cómo retomar gastando pocos tokens
+
+1. `git status && git diff --stat` y `git log --oneline -3` (ver qué quedó a medias). **No releas `ARQUITECTURA.md`**: usa `docs/ARQ-MAPA.md`.
+2. `make test` (46+ pruebas) y `make demo-local` para tener la demo viva.
+3. Comprueba los dos encargos 🔧 de la sección 3; si un agente no terminó, reanúdalo con `SendMessage` en vez de lanzar otro.
+4. Para trabajo visual, usa modelo **haiku** y pide capturas (`/tmp/shot2.mjs` como plantilla; Chromium ya instalado en `e2e/`). Las imágenes cuestan tokens: pide pocas y por estado clave.
+5. Prioriza la sección 6 de arriba; lo demás puede esperar.
+
+### Agentes
 
 - Usa los agentes `arq-*` (ver tabla en `CLAUDE.md`): **abre `claude` dentro del repo** para que se carguen por nombre; en una sesión ya abierta, usa `general-purpose` con el `model` correspondiente y pídele que lea su archivo de `.claude/agents/`.
 - Orden recomendado: contrato → (backend ∥ frontend ∥ datos) → QA → revisor. Para cambios pequeños en código que un agente ya conoce, reanúdalo con `SendMessage`.

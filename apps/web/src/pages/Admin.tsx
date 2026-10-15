@@ -1,5 +1,4 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
-import { NavLink } from 'react-router-dom'
 import { API_BASE, ApiError, api } from '../api/client'
 import type { Guardrails, Metrics } from '../api/types'
 import { ErrorBox, Field, Notice, PageTitle, Spinner } from '../components/ui'
@@ -8,15 +7,9 @@ import { useAsync } from '../lib/hooks'
 import { dateTime, money } from '../lib/format'
 
 function Shell({ title, children }: { title: string; children: ReactNode }) {
-  const { t } = useI18n()
   return (
     <div>
       <PageTitle>{title}</PageTitle>
-      <nav aria-label={t('nav.admin')} className="mb-4 flex gap-2 overflow-x-auto">
-        {[['/admin', 'adm.impact'], ['/admin/barandillas', 'adm.guardrails'], ['/admin/puestos', 'adm.stalls'], ['/admin/donaciones', 'adm.donations'], ['/admin/calidad', 'adm.quality']].map(([to, k]) => (
-          <NavLink key={to} to={to} end className={({ isActive }) => `chip ${isActive ? '!border-brand !bg-brand !text-white' : ''}`}>{t(k)}</NavLink>
-        ))}
-      </nav>
       {children}
     </div>
   )

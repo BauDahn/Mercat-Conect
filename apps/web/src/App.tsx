@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { Layout } from './components/Layout'
-import { Spinner } from './components/ui'
+import { Skeleton } from './components/ui'
 import { useAuth } from './state/auth'
 import type { User } from './api/types'
 import { Dashboard } from './pages/Dashboard'
@@ -14,14 +14,24 @@ import { ProducerPublish, ProducerOrders, ProducerOffers, ProducerPayouts } from
 import { AdminMetrics, AdminGuardrails, AdminStalls, AdminDonations, AdminQuality } from './pages/Admin'
 import { DemoPage } from './pages/Demo'
 import { LockersPage } from './pages/Lockers'
+import { ProducerHome } from './pages/ProducerHome'
 
 function Guard({ roles, children }: { roles?: User['role'][]; children: ReactNode }) {
   const { user, ready } = useAuth()
   const loc = useLocation()
-  if (!ready) return <Spinner />
+  if (!ready) return <div className="pt-4"><Skeleton count={3} /></div>
   if (!user) return <Navigate to="/entrar" state={{ from: loc.pathname }} replace />
   if (roles && !roles.includes(user.role)) return <Navigate to="/" replace />
   return <>{children}</>
+}
+
+/** Ruta "/": cada rol aterriza en su zona (§6.1). Visitantes y vecinos ven el dashboard. */
+function HomeRoute() {
+  const { user, ready } = useAuth()
+  if (!ready) return <div className="pt-4"><Skeleton count={3} /></div>
+  if (user?.role === 'PRODUCER') return <Navigate to="/productor" replace />
+  if (user?.role === 'MANAGER' || user?.role === 'ADMIN') return <Navigate to="/admin" replace />
+  return <Dashboard />
 }
 
 export default function App() {
@@ -30,7 +40,7 @@ export default function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route index element={<Dashboard />} />
+        <Route index element={<HomeRoute />} />
         <Route path="oferta/:id" element={<OfferPage />} />
         <Route path="entrar" element={<Login />} />
         <Route path="registro" element={<Register />} />
@@ -39,7 +49,7 @@ export default function App() {
         <Route path="pedidos/:id" element={<Guard><OrderPage /></Guard>} />
         <Route path="puntos" element={<Guard><PointsPage /></Guard>} />
         <Route path="perfil" element={<Guard><ProfilePage /></Guard>} />
-        <Route path="productor" element={<Navigate to="/productor/pedidos" replace />} />
+        <Route path="productor" element={<Guard roles={P}><ProducerHome /></Guard>} />
         <Route path="productor/publicar" element={<Guard roles={P}><ProducerPublish /></Guard>} />
         <Route path="productor/pedidos" element={<Guard roles={P}><ProducerOrders /></Guard>} />
         <Route path="productor/ofertas" element={<Guard roles={P}><ProducerOffers /></Guard>} />

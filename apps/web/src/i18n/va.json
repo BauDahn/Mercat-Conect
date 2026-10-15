@@ -21,7 +21,16 @@
   "login": "Entra",
   "producer": "Parada",
   "admin": "Gestió",
-  "demo": "Demo"
+  "demo": "Demo",
+  "panel": "Panell",
+  "publish": "Publicar",
+  "myOffers": "Les meues ofertes",
+  "payouts": "Cobraments",
+  "impact": "Impacte",
+  "stalls": "Paradetes",
+  "donations": "Donacions",
+  "quality": "Qualitat",
+  "guardrails": "Barana"
  },
  "lang": {
   "switch": "Canviar a castellà"
@@ -41,7 +50,8 @@
   "leftOf": "{left} de {total} punts",
   "spent": "Has gastat {n} punts esta setmana.",
   "renews": "Es renoven el {date}.",
-  "explain": "Els punts repartixen el producte entre més veïns. El cost de cada oferta depén de la demanda i de l'hora."
+  "explain": "Els punts repartixen el producte entre més veïns. El cost de cada oferta depén de la demanda i de l'hora.",
+  "label": "Saldo de punts"
  },
  "dash": {
   "market": "Mercat",
@@ -65,7 +75,8 @@
    "newest": "Més recents",
    "distance": "Més prop de mi"
   },
-  "empty": "Ara mateix no hi ha ofertes amb estos filtres."
+  "empty": "Ara mateix no hi ha ofertes amb estos filtres.",
+  "filters": "Cercar i filtrar"
  },
  "offer": {
   "closesIn": "Tanca en {n} min",
@@ -108,7 +119,8 @@
   "reservePay": "Reserva i paga",
   "total": "Total: {price} · {pts} punts",
   "serverRecalc": "El servidor recalcula sempre el preu, els punts i les regles en reservar.",
-  "costFor": "Cost: {n} punts per {q} {unit}"
+  "costFor": "Cost: {n} punts per {q} {unit}",
+  "seeWhy": "Veure per què"
  },
  "reasons": {},
  "rules": {},
@@ -341,7 +353,9 @@
   "resetDone": "Dades reiniciades.",
   "pause": "Pausa el rellotge",
   "resume": "Reprén el rellotge",
-  "paused": "Rellotge en pausa"
+  "paused": "Rellotge en pausa",
+  "tools": "Ferramentes de demo",
+  "lockers": "Taquilles virtuals"
  },
  "lock": {
   "title": "Taquilles virtuals",
@@ -396,5 +410,48 @@
   "payment_failed": "El pagament ha fallat. Pots reintentar-ho.",
   "invalid_signature": "Signatura no vàlida.",
   "demo_only": "Només disponible a la demo."
+ },
+ "ui": {
+  "today": "Hui",
+  "hi": "Hola, {name}",
+  "heroSubUser": "El que sobra hui als mercats, a preu rescatat.",
+  "balance": "El teu saldo de punts",
+  "pointsRenew": "es renoven el {day}",
+  "verifyTitle": "Verifica la teua edat per a reservar",
+  "verifySub": "Tarda un minut. Mentrestant pots vore totes les ofertes.",
+  "verifyCta": "Verificar edat",
+  "swipeHint": "Llisca per a vore més",
+  "offersCount": "{n} ofertes",
+  "offersCount_one": "{n} oferta",
+  "emptyTitle": "No hi ha ofertes amb aquests filtres",
+  "emptySub": "Prova una altra categoria o lleva algun filtre. Les paradetes publiquen cada dia.",
+  "clearFilters": "Llevar filtres",
+  "heroKicker": "Contra el malbaratament als mercats de València",
+  "heroTitle": "El que sobra hui al mercat, a preu rescatat",
+  "heroSub": "Les paradetes publiquen el producte fresc que no vendran. Tu el reserves amb els teus punts setmanals i el recollixes en una taquilla refrigerada.",
+  "signup": "Crear compte",
+  "enter": "Entrar",
+  "chooseCustomer": "Sóc client o consumidor",
+  "chooseCustomerSub": "Reserva ofertes i recull-les a la taquilla.",
+  "chooseBusiness": "Sóc productor o gestió",
+  "chooseBusinessSub": "Publica l'excedent del dia o mira l'impacte del mercat.",
+  "producerKicker": "Panell de la paradeta",
+  "producerTitle": "Hola, ací tens el teu dia",
+  "producerSub": "Publica el que sobra, prepara les comandes i revisa les teues ofertes.",
+  "publishBig": "Publicar oferta",
+  "kpis": "Resum",
+  "kpiActive": "Ofertes actives",
+  "kpiToPrepare": "Per preparar",
+  "kpiDrafts": "Esborranys",
+  "toPrepare": "Comandes per preparar",
+  "seeAll": "Vore-ho tot",
+  "noToPrepare": "Res per preparar",
+  "noToPrepareSub": "Quan un veí reserve, la comanda apareixerà ací.",
+  "prepare": "Preparar",
+  "yourOffers": "Les teues ofertes",
+  "noOffersYet": "Encara no has publicat res",
+  "noOffersYetSub": "Publicar tarda menys de 30 segons.",
+  "unitsLeft": "Queden {n}",
+  "credits": "Fotos d'exemple: Wikimedia Commons (CC0, domini públic, CC BY i CC BY-SA)."
  }
 }

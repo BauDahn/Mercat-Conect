@@ -151,6 +151,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/producer/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Crea un producto nuevo en un puesto del propio productor */
+        post: operations["producerCreateProduct"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/producer/products/{id}/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sube la foto del producto (jpeg, png o webp; máx. 2 MB)
+         * @description Se valida la cabecera real del archivo (no el nombre ni el Content-Type) y se guarda con nombre aleatorio.
+         */
+        post: operations["producerUploadProductPhoto"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/uploads/{file}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Archivo subido (X-Content-Type-Options nosniff, caché larga) */
+        get: operations["getUpload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/producer/stalls": {
         parameters: {
             query?: never;
@@ -763,6 +817,10 @@ export interface components {
             /** Format: uuid */
             market_id: string;
             market_name?: string;
+            /** @description Latitud del mercado (el cliente calcula distancias) */
+            market_lat?: number | null;
+            /** @description Longitud del mercado */
+            market_lng?: number | null;
             name: string;
             category: string;
         };
@@ -785,7 +843,29 @@ export interface components {
             /** @enum {string} */
             food_class: "REFRIGERATED" | "AMBIENT";
             usual_price_cents?: number | null;
+            /** @description Ruta servida por GET /uploads/{file} (o imagen incluida en el repo) */
             photo_url?: string | null;
+            /** @description Categoría del puesto (color/emoji de la tarjeta) */
+            category?: string;
+        };
+        ProductInput: {
+            /** Format: uuid */
+            stall_id: string;
+            name: string;
+            /**
+             * @example kg
+             * @example ud
+             * @example bandeja
+             */
+            unit: string;
+            unit_weight_g?: number | null;
+            /** @enum {number} */
+            vat_rate: 4 | 10 | 21;
+            /** @default [] */
+            allergens: string[];
+            /** @enum {string} */
+            food_class: "REFRIGERATED" | "AMBIENT";
+            usual_price_cents?: number | null;
         };
         /** @enum {string} */
         OfferStatus: "DRAFT" | "ACTIVE" | "SOLD_OUT" | "EXPIRED" | "WITHDRAWN" | "DONATED" | "DISCARDED";
@@ -1349,6 +1429,94 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    producerCreateProduct: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductInput"];
+            };
+        };
+        responses: {
+            /** @description Producto creado (`category` = categoría del puesto) */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    producerUploadProductPhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Foto guardada */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example /uploads/0123456789abcdef0123456789abcdef.jpg */
+                        photo_url: string;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                file: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Imagen */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/png": string;
+                    "image/webp": string;
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
     };
     producerListStalls: {

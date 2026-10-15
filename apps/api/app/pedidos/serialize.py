@@ -7,8 +7,9 @@ from app.db.models import Compartment, Deposit, Locker, Market, Offer, Order, Or
 from app.taquillas.codes import pickup_code
 
 
-def stall_out(s: Stall, market_name: str | None) -> dict:
-    return {"id": str(s.id), "market_id": str(s.market_id), "market_name": market_name,
+def stall_out(s: Stall, market: Market) -> dict:
+    return {"id": str(s.id), "market_id": str(s.market_id), "market_name": market.name,
+            "market_lat": market.lat, "market_lng": market.lng,
             "name": s.name, "category": s.category}
 
 
@@ -22,7 +23,7 @@ def serialize_orders(db: Session, orders: list[Order], viewer_id: uuid.UUID | No
         items.setdefault(it.order_id, []).append({"offer_id": str(it.offer_id), "product_name": name,
                                                   "qty": it.qty, "unit_cents": it.unit_cents})
     stalls = {s.id: (s, m) for s, m in db.execute(
-        select(Stall, Market.name).join(Market, Market.id == Stall.market_id)
+        select(Stall, Market).join(Market, Market.id == Stall.market_id)
         .where(Stall.id.in_({o.stall_id for o in orders})))}
     lockers = {d.order_id: (c, l, mn) for d, c, l, mn in db.execute(
         select(Deposit, Compartment, Locker, Market.name).join(Compartment, Compartment.id == Deposit.compartment_id)

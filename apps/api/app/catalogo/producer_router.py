@@ -2,12 +2,14 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Response, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
+from app.almacen import detect_image, get_store
 from app.catalogo import service
+from app.config import get_settings
 from app.db.models import Market, Offer, OfferPolicy, Product, Stall, User
 from app.db.session import get_db
 from app.deps import require_roles
@@ -101,9 +103,9 @@ def _detail(db: Session, offer_id: uuid.UUID) -> dict:
 
 @router.get("/producer/stalls")
 def my_stalls(user: User = Depends(require_roles("PRODUCER")), db: Session = Depends(get_db)):
-    rows = db.execute(select(Stall, Market.name).join(Market, Market.id == Stall.market_id)
+    rows = db.execute(select(Stall, Market).join(Market, Market.id == Stall.market_id)
                       .where(Stall.owner_user_id == user.id).order_by(Stall.name)).all()
-    return {"items": [stall_out(s, mn) for s, mn in rows]}
+    return {"items": [stall_out(s, m) for s, m in rows]}
 
 
 @router.get("/products")
@@ -111,7 +113,7 @@ def products(stall_id: uuid.UUID, user: User = Depends(require_roles("PRODUCER")
     st = db.get(Stall, stall_id)
     if st is None or st.owner_user_id != user.id:
         raise ApiError("forbidden")
-    return {"items": [service.product_out(p) for p in db.scalars(
+    return {"items": [service.product_out(p, st.category) for p in db.scalars(
         select(Product).where(Product.stall_id == stall_id).order_by(Product.name))]}
 
 
@@ -136,6 +138,58 @@ def my_offers(status: str | None = None, user: User = Depends(require_roles("PRO
         d["policy_profile"] = service.policy_profile(db, o.id)
         items.append(d)
     return {"items": items}
+
+
+class ProductInput(BaseModel):
+    stall_id: uuid.UUID
+    name: str = Field(min_length=2, max_length=80)
+    unit: str = Field(min_length=1, max_length=20)
+    unit_weight_g: int | None = Field(default=None, ge=1)
+    vat_rate: Literal[4, 10, 21]
+    allergens: list[str] = Field(default_factory=list, max_length=20)
+    food_class: Literal["REFRIGERATED", "AMBIENT"]
+    usual_price_cents: int | None = Field(default=None, ge=0)
+
+
+@router.post("/producer/products", status_code=201)
+def create_product(body: ProductInput, user: User = Depends(require_roles("PRODUCER")),
+                   db: Session = Depends(get_db)):
+    stall = db.get(Stall, body.stall_id)
+    if stall is None or stall.owner_user_id != user.id:
+        raise ApiError("forbidden")
+    if any(len(a) > 40 for a in body.allergens):
+        raise ApiError("validation_failed", field="allergens")
+    p = Product(id=uuid.uuid4(), stall_id=stall.id, name=body.name.strip(), unit=body.unit.strip(),
+                unit_weight_g=body.unit_weight_g, vat_rate=body.vat_rate, allergens=body.allergens,
+                food_class=body.food_class, usual_price_cents=body.usual_price_cents)
+    db.add(p)
+    db.commit()
+    return service.product_out(p, stall.category)
+
+
+@router.post("/producer/products/{id}/photo")
+async def upload_photo(id: uuid.UUID, file: UploadFile, user: User = Depends(require_roles("PRODUCER")),
+                       db: Session = Depends(get_db)):
+    p = db.get(Product, id)
+    if p is None:
+        raise ApiError("not_found")
+    if db.scalar(select(Stall.owner_user_id).where(Stall.id == p.stall_id)) != user.id:
+        raise ApiError("forbidden")
+    limit = get_settings().MAX_UPLOAD_BYTES
+    data = await file.read(limit + 1)
+    if len(data) > limit:
+        raise ApiError("validation_failed", field="file", reason="too_large", max_bytes=limit)
+    ext = detect_image(data)
+    if ext is None:
+        raise ApiError("validation_failed", field="file", reason="unsupported_type")
+    store = get_store()
+    name = store.save(data, ext)
+    old = p.photo_path
+    p.photo_path = f"/uploads/{name}"
+    db.commit()
+    if old and old.startswith("/uploads/"):
+        store.delete(old.rsplit("/", 1)[1])
+    return {"photo_url": p.photo_path}
 
 
 @router.post("/producer/offers", status_code=201)

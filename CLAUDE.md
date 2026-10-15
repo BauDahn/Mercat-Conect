@@ -2,7 +2,7 @@
 
 Plataforma pública contra el desperdicio alimentario en los mercados municipales de València. **Proyecto de hackathon** con **demo reproducible en localhost** y datos inventados. Los productores publican el excedente del día con el precio que quieran, los vecinos mayores de edad lo compran desde una app web (PWA) gastando **puntos semanales** y lo recogen en **taquillas refrigeradas**. Telegram queda solo como idea futura para avisos.
 
-> **Empieza por `ESTADO.md`**: qué está hecho, qué está en curso, qué falla y por dónde seguir.
+> **Empieza por `ESTADO.md`**: qué está hecho, qué está en curso, qué falla y por dónde seguir. El presupuesto de tokens del usuario está **casi agotado**: sé breve, no releas documentos largos y usa modelos baratos (haiku) para lo mecánico y lo visual.
 
 ## Fuente de verdad (obligatorio)
 
@@ -78,7 +78,7 @@ La sesión principal **orquesta**; los agentes **implementan** en su carpeta. De
 
 ## Límites
 
-- **No hagas commit ni push** salvo que el usuario lo pida expresamente. No hay nada commiteado más allá del commit inicial.
+- **No hagas commit ni push** salvo que el usuario lo pida expresamente. Último commit subido: `bc823ba` (antes del rediseño del frontend); puede haber trabajo posterior sin commitear.
 - No instales nada global ni uses `sudo` (si hace falta, el usuario lo ejecuta con `! comando`).
 - No toques `ARQUITECTURA.md` ni los secretos de `.env` (los de `.env.example` son solo de demo).
 - Habla con el usuario en **español**.

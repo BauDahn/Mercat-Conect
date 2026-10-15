@@ -11,15 +11,15 @@ from app.reglas import service as reglas
 from app.taquillas.capacity import free_slots_map
 
 
-def product_out(p: Product) -> dict:
+def product_out(p: Product, category: str | None = None) -> dict:
     return {"id": str(p.id), "name": p.name, "unit": p.unit, "unit_weight_g": p.unit_weight_g,
             "vat_rate": float(p.vat_rate), "allergens": list(p.allergens or []), "food_class": p.food_class,
-            "usual_price_cents": p.usual_price_cents, "photo_url": p.photo_path}
+            "usual_price_cents": p.usual_price_cents, "photo_url": p.photo_path, "category": category}
 
 
 def offer_out(o: Offer, s: Stall, p: Product, m: Market, free: dict) -> dict:
     slots = free.get((m.id, p.food_class), 0)
-    return {"id": str(o.id), "stall": stall_out(s, m.name), "product": product_out(p), "qty_total": o.qty_total,
+    return {"id": str(o.id), "stall": stall_out(s, m), "product": product_out(p, s.category), "qty_total": o.qty_total,
             "qty_available": o.qty_available, "effective_stock": min(o.qty_available, slots),
             "price_cents": o.price_cents, "reference_price_cents": o.reference_price_cents,
             "pickup_from": o.pickup_from.isoformat(), "pickup_until": o.pickup_until.isoformat(),

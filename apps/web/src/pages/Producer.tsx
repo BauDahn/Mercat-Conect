@@ -1,5 +1,4 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { NavLink } from 'react-router-dom'
 import { api } from '../api/client'
 import type { Offer, Order, Product, ProducerOfferInput, Stall } from '../api/types'
 import { ErrorBox, Field, Notice, PageTitle, Spinner } from '../components/ui'
@@ -10,20 +9,8 @@ import { useLive } from '../state/live'
 import { useAsync } from '../lib/hooks'
 import { dateTime, madridDate, madridISO, money, timeHM } from '../lib/format'
 
-function Tabs() {
-  const { t } = useI18n()
-  const items = [['publicar', 'pub.nav'], ['pedidos', 'prod.orders'], ['ofertas', 'prod.offers'], ['liquidaciones', 'prod.payouts']]
-  return (
-    <nav aria-label={t('nav.producer')} className="mb-4 flex gap-2 overflow-x-auto">
-      {items.map(([p, k]) => (
-        <NavLink key={p} to={`/productor/${p}`} className={({ isActive }) => `chip ${isActive ? '!border-brand !bg-brand !text-white' : ''}`}>{t(k)}</NavLink>
-      ))}
-    </nav>
-  )
-}
-
 function Shell({ title, children }: { title: string; children: ReactNode }) {
-  return (<div><PageTitle>{title}</PageTitle><Tabs />{children}</div>)
+  return (<div><PageTitle>{title}</PageTitle>{children}</div>)
 }
 
 /** Puestos del productor (GET /producer/stalls), sus plantillas (GET /products) y ofertas vigentes (GET /offers). */

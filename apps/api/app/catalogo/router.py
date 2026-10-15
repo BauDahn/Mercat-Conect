@@ -1,6 +1,9 @@
 import uuid
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import FileResponse
+
+from app.almacen import MEDIA, get_store
 from sqlalchemy.orm import Session
 
 from app.catalogo import service
@@ -16,6 +19,15 @@ from app.reloj import get_clock
 from app.taquillas.capacity import free_slots_map
 
 router = APIRouter()
+
+
+@router.get("/uploads/{file}")
+def get_upload(file: str):
+    path = get_store().path(file)
+    if path is None:
+        raise ApiError("not_found")
+    return FileResponse(path, media_type=MEDIA[file.rsplit(".", 1)[1]], headers={
+        "X-Content-Type-Options": "nosniff", "Cache-Control": "public, max-age=31536000, immutable"})
 SORTS = {"closing_soon", "price_asc", "price_desc", "newest", "distance"}
 
 

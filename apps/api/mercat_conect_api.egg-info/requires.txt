@@ -7,3 +7,4 @@ pydantic-settings<2.12,>=2.6
 argon2-cffi<26,>=23.1
 httpx<0.29,>=0.27
 tzdata>=2026.5
+python-multipart>=0.0.32
